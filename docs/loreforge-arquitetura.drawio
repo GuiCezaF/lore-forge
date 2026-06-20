@@ -1,0 +1,306 @@
+<mxfile host="app.diagrams.net" agent="LoreForge" version="22.1.0" type="device">
+  <diagram id="arquitetura" name="Arquitetura">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title1" value="LoreForge — Arquitetura de Componentes (MVP)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="400" y="20" width="800" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="user" value="Usuário&#xa;(Mestre / Jogador / Espectador)" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="760" y="80" width="40" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="browser" value="Navegador" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="680" y="200" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge_u_b" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="user" target="browser">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="web_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="120" y="300" width="520" height="320" as="geometry"/>
+        </mxCell>
+        <mxCell id="web_title" value="apps/web — Next.js (@loreforge/web)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="140" y="310" width="400" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="web_app" value="App Router + Middleware Auth" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="350" width="220" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="web_query" value="TanStack Query (REST)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="350" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="web_zustand" value="Zustand (UI / Canvas)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="410" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="web_pixi" value="PixiJS — Mapa + Apresentação" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="410" width="220" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="web_flow" value="React Flow — Quadro" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="470" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="web_tiptap" value="TipTap — Documentos" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="470" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="web_ws" value="Cliente WebSocket" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="530" width="400" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="web_test" value="Vitest + RTL + Cypress + MSW" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="580" width="400" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="api_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="720" y="300" width="520" height="420" as="geometry"/>
+        </mxCell>
+        <mxCell id="api_title" value="apps/api — NestJS (@loreforge/api)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="740" y="310" width="400" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="api_rest" value="REST API + Swagger (/api/docs)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="740" y="350" width="220" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="api_auth" value="Auth — Google OAuth + JWT" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="980" y="350" width="200" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="api_gw" value="WebSocket Gateway" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="740" y="410" width="200" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="api_domain" value="Módulos: campaigns · characters · documents&#xa;map · dice · investigation" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="960" y="410" width="260" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="api_rpg" value="rpg/ — Ordem Paranormal (ficha + motor d20)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="740" y="480" width="480" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="api_drizzle" value="Drizzle ORM" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="740" y="540" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="api_storage" value="Storage S3 SDK" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="900" y="540" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="api_test" value="Jest TDD — unit · integração · e2e" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="540" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="pg" value="PostgreSQL&#xa;(campanhas, fichas, docs, mapa, quadro)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="760" y="760" width="140" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="redis" value="Redis&#xa;(pub/sub WS)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="940" y="760" width="120" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3" value="MinIO (dev)&#xa;Cloudflare R2 (prod)&#xa;mapas · imagens" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="760" width="120" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="google" value="Google OAuth" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="340" width="140" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_b_w" value="HTTPS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="browser" target="web_box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_w_r" value="REST + JWT" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="web_query" target="api_rest">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_w_ws" value="WebSocket" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="web_ws" target="api_gw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_api_pg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="api_drizzle" target="pg">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_api_redis" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="api_gw" target="redis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_api_s3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="api_storage" target="s3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_api_google" value="OAuth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="api_auth" target="google">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="note1" value="Sem packages compartilhados&#xa;Contrato: Swagger (REST) + ws-events.md (WS)" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#ffffcc;strokeColor=#36393d;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="120" y="660" width="280" height="60" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="fluxo" name="Fluxo da Aplicação">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="f0"/>
+        <mxCell id="f1" parent="f0"/>
+        <mxCell id="ftitle" value="LoreForge — Fluxo da Aplicação (MVP)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1" vertex="1" parent="f1">
+          <mxGeometry x="400" y="20" width="800" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="start" value="Início" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="f1">
+          <mxGeometry x="720" y="80" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="login" value="Login Google OAuth&#xa;(web → api/auth)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="f1">
+          <mxGeometry x="680" y="160" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="dash" value="Dashboard&#xa;Listar campanhas" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="f1">
+          <mxGeometry x="680" y="240" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="create" value="Mestre cria campanha&#xa;(REST POST /campaigns)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="f1">
+          <mxGeometry x="680" y="320" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="invite" value="Convidar jogadores&#xa;(link / código)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="f1">
+          <mxGeometry x="680" y="400" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="join" value="Jogador aceita convite&#xa;Cria/edita ficha OP" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="f1">
+          <mxGeometry x="680" y="480" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="session" value="Entrar na Sessão&#xa;WebSocket join_campaign" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="f1">
+          <mxGeometry x="680" y="560" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="tabs" value="Abas da campanha" style="rhombus;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="f1">
+          <mxGeometry x="700" y="640" width="160" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="tab_char" value="Personagens&#xa;CRUD ficha" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="f1">
+          <mxGeometry x="200" y="760" width="140" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="tab_docs" value="Docs&#xa;TipTap + autosave" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="f1">
+          <mxGeometry x="380" y="760" width="140" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="tab_map" value="Mapa&#xa;PixiJS + tokens + fog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="f1">
+          <mxGeometry x="560" y="760" width="160" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="tab_dice" value="Dados&#xa;Rolagem → API valida" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="f1">
+          <mxGeometry x="760" y="760" width="160" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="tab_board" value="Quadro&#xa;React Flow + sync" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="f1">
+          <mxGeometry x="960" y="760" width="160" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="present" value="Modo Apresentação&#xa;Nova aba /present&#xa;UI limpa + câmera sync" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="f1">
+          <mxGeometry x="1160" y="760" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="sync" value="Sync tempo real&#xa;(4+ clientes)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="f1">
+          <mxGeometry x="660" y="880" width="240" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="end" value="Fim sessão" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="f1">
+          <mxGeometry x="720" y="960" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="fe1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="start" target="login"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="login" target="dash"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe3" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="dash" target="create"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="create" target="invite"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe5" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="invite" target="join"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe6" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="join" target="session"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe7" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="session" target="tabs"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe8" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="tabs" target="tab_char"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe9" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="tabs" target="tab_docs"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe10" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="tabs" target="tab_map"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe11" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="tabs" target="tab_dice"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe12" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="tabs" target="tab_board"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe13" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="tab_map" target="present"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe14" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="tab_map" target="sync"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe15" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="tab_dice" target="sync"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe16" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="tab_board" target="sync"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe17" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="present" target="sync"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe18" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="f1" source="sync" target="end"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fnote" value="Papéis: GM controla mapa, docs, fog, apresentação&#xa;Player: ficha, dados, token próprio&#xa;Spectator: mapa read-only (apresentação)" style="shape=note;whiteSpace=wrap;html=1;fillColor=#ffffcc;strokeColor=#36393d;align=left;spacingLeft=8;" vertex="1" parent="f1">
+          <mxGeometry x="200" y="640" width="320" height="70" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="tempo-real" name="Tempo Real">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="t0"/>
+        <mxCell id="t1" parent="t0"/>
+        <mxCell id="ttitle" value="LoreForge — Fluxo Tempo Real (WebSocket + Redis)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1" vertex="1" parent="t1">
+          <mxGeometry x="350" y="20" width="900" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="cA" value="Cliente A&#xa;(web)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="t1">
+          <mxGeometry x="80" y="120" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="cB" value="Cliente B&#xa;(web)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="t1">
+          <mxGeometry x="80" y="520" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="cPres" value="Apresentação&#xa;(spectator)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="t1">
+          <mxGeometry x="80" y="320" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="gw" value="WebSocket Gateway&#xa;(NestJS — apps/api)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="t1">
+          <mxGeometry x="320" y="280" width="200" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="tredis" value="Redis pub/sub&#xa;campaign:{id}" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" vertex="1" parent="t1">
+          <mxGeometry x="600" y="290" width="120" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="tpg" value="PostgreSQL&#xa;(persistência)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" vertex="1" parent="t1">
+          <mxGeometry x="800" y="290" width="120" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="te1" value="1 join_campaign" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="t1" source="cA" target="gw"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="te2" value="2 snapshot estado" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" edge="1" parent="t1" source="gw" target="cA"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="te3" value="3 dice:roll / map:token_move" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="t1" source="cA" target="gw"><mxGeometry relative="1" as="geometry"><mxPoint x="280" y="200" as="sourcePoint"/></mxGeometry></mxCell>
+        <mxCell id="te4" value="4 valida + persiste" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="t1" source="gw" target="tpg"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="te5" value="5 publish" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="t1" source="gw" target="tredis"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="te6" value="6 broadcast" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="t1" source="tredis" target="gw"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="te7" value="7 evento para todos" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="t1" source="gw" target="cB"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="te8" value="map:camera_sync" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="t1" source="gw" target="cPres"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="events" value="Eventos WS (MVP):&#xa;presence:join/leave · dice:roll · map:token_move&#xa;map:fog_update · map:camera_sync · map:presentation_mode&#xa;board:node_update · board:edge_update" style="shape=note;whiteSpace=wrap;html=1;fillColor=#ffffcc;strokeColor=#36393d;align=left;spacingLeft=8;" vertex="1" parent="t1">
+          <mxGeometry x="320" y="420" width="400" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="treq" value="Requisito: 4 clientes simultâneos · sync token &lt; 200ms (LAN)" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=2" vertex="1" parent="t1">
+          <mxGeometry x="320" y="540" width="500" height="30" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="deploy" name="Deploy">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="d0"/>
+        <mxCell id="d1" parent="d0"/>
+        <mxCell id="dtitle" value="LoreForge — Ambientes (Dev vs Produção)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1" vertex="1" parent="d1">
+          <mxGeometry x="400" y="20" width="800" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="dev_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;" vertex="1" parent="d1">
+          <mxGeometry x="80" y="100" width="640" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="dev_title" value="Desenvolvimento (local)" style="text;html=1;fontSize=16;fontStyle=1;strokeColor=none;fillColor=none;align=left;" vertex="1" parent="d1">
+          <mxGeometry x="100" y="110" width="300" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="dev_web" value="pnpm dev — apps/web :3000" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="d1">
+          <mxGeometry x="120" y="160" width="200" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="dev_api" value="pnpm dev — apps/api :3001&#xa;/api/docs (Swagger)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="d1">
+          <mxGeometry x="360" y="160" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="dev_docker" value="docker compose up&#xa;PostgreSQL · Redis · MinIO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;" vertex="1" parent="d1">
+          <mxGeometry x="120" y="260" width="440" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="dev_test" value="pnpm test · pnpm test:e2e · openapi:export" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;" vertex="1" parent="d1">
+          <mxGeometry x="120" y="340" width="440" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;" vertex="1" parent="d1">
+          <mxGeometry x="800" y="100" width="640" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod_title" value="Produção" style="text;html=1;fontSize=16;fontStyle=1;strokeColor=none;fillColor=none;align=left;" vertex="1" parent="d1">
+          <mxGeometry x="820" y="110" width="200" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="cf" value="Cloudflare&#xa;DNS · TLS · CDN" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="d1">
+          <mxGeometry x="820" y="160" width="160" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="coolify" value="Coolify&#xa;Docker deploy" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="d1">
+          <mxGeometry x="1020" y="170" width="160" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod_web" value="Container web&#xa;(Next.js)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="d1">
+          <mxGeometry x="820" y="280" width="140" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod_api" value="Container api&#xa;(NestJS)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="d1">
+          <mxGeometry x="980" y="280" width="140" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod_pg" value="PostgreSQL" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;" vertex="1" parent="d1">
+          <mxGeometry x="820" y="360" width="100" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod_redis" value="Redis" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;" vertex="1" parent="d1">
+          <mxGeometry x="940" y="360" width="80" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod_r2" value="Cloudflare R2&#xa;(storage)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;" vertex="1" parent="d1">
+          <mxGeometry x="1040" y="360" width="100" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="de1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="d1" source="cf" target="coolify"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="de2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="d1" source="coolify" target="prod_web"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="de3" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="d1" source="coolify" target="prod_api"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="de4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="d1" source="prod_api" target="prod_pg"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="de5" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="d1" source="prod_api" target="prod_redis"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="de6" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="d1" source="prod_api" target="prod_r2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="dnote" value="Monorepo: apps/web + apps/api (sem packages)&#xa;CI: lint → test → test:e2e → openapi:export → build → deploy" style="shape=note;whiteSpace=wrap;html=1;fillColor=#ffffcc;strokeColor=#36393d;align=left;spacingLeft=8;" vertex="1" parent="d1">
+          <mxGeometry x="80" y="520" width="400" height="60" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
