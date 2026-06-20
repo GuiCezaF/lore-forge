@@ -145,5 +145,5 @@ vite.config.ts.timestamp-*
 
 # AI
 .cursor/
-.agent/
+.agents/
 .codex/
