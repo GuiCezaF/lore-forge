@@ -58,7 +58,6 @@ LoreForge/
 ├── docs/             # Requisitos, padrões, métricas, diagramas
 ├── docker-compose.yml
 ├── README.md
-├── LICENSE.md
 └── LICENSE
 ```
 
@@ -210,8 +209,8 @@ Ordem Paranormal é produto da **Jambô Editora** e seus criadores. LoreForge é
 
 ## Licença
 
-Código do LoreForge: **proprietário** — © 2026 Guilherme Cezarino Felipe. Todos os direitos reservados. Ver [LICENSE.md](LICENSE.md).
+Código do LoreForge: [Apache License 2.0](LICENSE).
 
-Uso, cópia, modificação ou distribuição não autorizados são proibidos.
-
-Sistemas de RPG, marcas e obras de terceiros pertencem aos seus respectivos titulares.
+Isso cobre o código-fonte do repositório. Marcas, nomes e materiais de
+terceiros, incluindo referência a Ordem Paranormal, continuam pertencendo aos
+respectivos titulares e não recebem autorização adicional por este projeto.
