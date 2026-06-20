@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { setupSwagger } from './../src/swagger';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -13,6 +14,7 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    setupSwagger(app);
     await app.listen(0);
   });
 
