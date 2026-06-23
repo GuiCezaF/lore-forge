@@ -4,18 +4,26 @@ import { LandingHero } from "./landing-hero";
 
 describe("LandingHero", () => {
   it("renders the product message and call to action", () => {
-    render(<LandingHero />);
+    const authUrl = "http://localhost:3000/auth/google";
+
+    const { container } = render(<LandingHero authUrl={authUrl} />);
 
     expect(
       screen.getByRole("heading", {
-        name: /mesa virtual com mapa, fichas e documentos em um só lugar/i,
+        name: /entre com sua conta google/i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /explorar base/i }),
+      screen.getByText(/autenticação oauth2 com access token/i),
     ).toBeInTheDocument();
+    expect(screen.getByText("LoreForge")).toBeInTheDocument();
     expect(
-      screen.getByText(/vitest pronto para rodar/i),
+      screen.getByRole("link", { name: /logar com o google/i }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /logar com o google/i })).toHaveAttribute(
+      "href",
+      authUrl,
+    );
+    expect(container.querySelector("svg")).toBeInTheDocument();
   });
 });

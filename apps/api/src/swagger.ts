@@ -6,7 +6,10 @@ export function setupSwagger(app: INestApplication): void {
     .setTitle('LoreForge API')
     .setDescription('Documentação inicial da API do LoreForge')
     .setVersion('0.0.1')
+    .addBearerAuth()
     .addTag('app')
+    .addTag('auth')
+    .addTag('users')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

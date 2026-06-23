@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.md
+test
+*.log
+.pnpm-store

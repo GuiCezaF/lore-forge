@@ -109,9 +109,9 @@ pnpm dev
 
 | Serviço | URL (prevista) |
 |---------|----------------|
-| Web | http://localhost:3000 |
-| API | http://localhost:3001 |
-| Swagger | http://localhost:3001/api/docs |
+| Web | http://localhost:3001 |
+| API | http://localhost:3000 |
+| Swagger | http://localhost:3000/api/docs |
 | MinIO | http://localhost:9001 |
 
 ---
@@ -171,7 +171,8 @@ S3_SECRET_KEY=minioadmin
 
 # Apps
 NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_WS_URL=ws://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:3000
+NEXT_PUBLIC_WS_URL=ws://localhost:3000
 
 # Ads (prod)
 NEXT_PUBLIC_GOOGLE_ADS_CLIENT=
