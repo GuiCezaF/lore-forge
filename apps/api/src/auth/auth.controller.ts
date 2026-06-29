@@ -86,6 +86,17 @@ export class AuthController {
     return res.status(204).send();
   }
 
+  @Get('bypass')
+  @ApiOperation({ summary: 'Bypass Google OAuth2 for local development' })
+  async bypass(@Res() res: Response) {
+    if (this.authService.isProduction()) {
+      throw new UnauthorizedException('Bypass only available in development mode');
+    }
+    const session = await this.authService.bypassLogin();
+    this.authService.attachAuthCookies(res, session);
+    return res.redirect(this.authService.getPostLoginRedirectUrl());
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

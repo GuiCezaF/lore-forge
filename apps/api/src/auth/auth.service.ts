@@ -141,6 +141,17 @@ export class AuthService {
     return this.createSession(user);
   }
 
+  async bypassLogin(): Promise<{ user: AuthUser; accessToken: string; refreshToken: string }> {
+    const mockProfile = {
+      sub: 'mock-dev-id-123',
+      email: 'investigator@loreforge.local',
+      name: 'Arthur Cervero',
+      picture: 'https://avatar.vercel.sh/arthur',
+    };
+    const user = this.usersService.upsertGoogleUser(mockProfile);
+    return this.createSession(user);
+  }
+
   createSession(user: AuthUser): {
     user: AuthUser;
     accessToken: string;

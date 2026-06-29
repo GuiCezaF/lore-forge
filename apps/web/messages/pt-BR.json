@@ -1,0 +1,75 @@
+{
+  "metadata": {
+    "title": "LoreForge",
+    "description": "Frontend do LoreForge para campanhas, fichas e mapa em tempo real."
+  },
+  "locale": {
+    "label": "Idioma",
+    "pt-BR": "Português",
+    "en": "English"
+  },
+  "login": {
+    "badge": "Portal de Investigação Paranormal",
+    "title": "LoreForge",
+    "tagline": "A verdade está além do véu. Forje sua investigação, rastreie pistas e comande o paranormal.",
+    "signInGoogle": "Entrar com Google",
+    "devBypass": "Login Dev (Ignorar Google Auth)",
+    "disclaimer": "LoreForge é uma plataforma VTT não oficial."
+  },
+  "layout": {
+    "home": "Início",
+    "investigator": "Investigador",
+    "logout": "Sair",
+    "loading": "Conectando ao Véu..."
+  },
+  "home": {
+    "subtitle": "Selecione Seu Caminho",
+    "title": "Como você enfrentará as entidades?",
+    "gm": {
+      "title": "Mestre",
+      "description": "Controle os segredos, projete a investigação, orquestre encontros com entidades aterrorizantes e guie seus jogadores pela escuridão.",
+      "action": "Entrar como Mestre"
+    },
+    "player": {
+      "title": "Investigador",
+      "description": "Gerencie suas fichas de personagem, acompanhe seus traços e atributos, role sua pool de dados e prepare-se para enfrentar o que se esconde nas sombras.",
+      "action": "Gerenciar Investigador"
+    }
+  },
+  "jogador": {
+    "backToDashboard": "Voltar ao Painel",
+    "title": "Investigadores",
+    "subtitle": "Gerencie e selecione suas fichas de personagem ativas.",
+    "emptyTitle": "Não possui fichas?",
+    "emptyDescription": "Crie uma clicando no botão + no canto inferior direito da sua tela.",
+    "createAriaLabel": "Criar Personagem",
+    "toastTitle": "Criação de personagem em desenvolvimento.",
+    "toastDescription": "Em breve você poderá criar e configurar sua ficha de investigador."
+  },
+  "mestre": {
+    "backToDashboard": "Voltar ao Painel",
+    "title": "Comando do Mestre",
+    "subtitle": "Gerencie suas campanhas, monstros e NPCs.",
+    "campaigns": {
+      "title": "Campanhas",
+      "description": "Gerencie suas campanhas. Clique no botão + para criar uma nova campanha.",
+      "create": "Criar Campanha",
+      "toastTitle": "Criação de campanha em desenvolvimento.",
+      "toastDescription": "Em breve você poderá iniciar novas campanhas paranormais."
+    },
+    "monsters": {
+      "title": "Monstros",
+      "description": "Gerencie seus monstros. Clique no botão + para criar um novo monstro.",
+      "create": "Criar Monstro",
+      "toastTitle": "Criação de monstro em desenvolvimento.",
+      "toastDescription": "Uma forja de criaturas customizadas está chegando em breve."
+    },
+    "npcs": {
+      "title": "NPCs",
+      "description": "Gerencie seus NPCs. Clique no botão + para criar um novo NPC.",
+      "create": "Criar NPC",
+      "toastTitle": "Criação de NPC em desenvolvimento.",
+      "toastDescription": "Em breve você poderá registrar NPCs aliados e inimigos."
+    }
+  }
+}

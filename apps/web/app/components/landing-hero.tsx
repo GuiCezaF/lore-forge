@@ -1,5 +1,13 @@
+"use client";
+
+import { Eye, ShieldAlert } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { LocaleSwitcher } from "./locale-switcher";
+
 type LandingHeroProps = {
   authUrl: string;
+  bypassUrl: string;
+  isDev: boolean;
 };
 
 function GoogleLogo() {
@@ -31,35 +39,57 @@ function GoogleLogo() {
   );
 }
 
-export function LandingHero({ authUrl }: LandingHeroProps) {
+export function LandingHero({ authUrl, bypassUrl, isDev }: LandingHeroProps) {
+  const t = useTranslations("login");
+
   return (
-    <section className="relative overflow-hidden rounded-4xl border border-white/10 bg-[#0b1220] p-8 shadow-2xl shadow-slate-950/40 sm:p-10">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.28),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.18),transparent_28%)]" />
-      <div className="relative flex flex-col items-start gap-8">
-        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200">
-          <span className="h-2 w-2 rounded-full bg-emerald-400" />
-          LoreForge
+    <section className="relative overflow-hidden rounded-3xl border border-red-950/40 bg-zinc-950 p-8 shadow-2xl shadow-black/80 sm:p-12 max-w-lg w-full mx-auto">
+      <div className="absolute -top-40 -left-40 h-80 w-80 rounded-full bg-red-900/10 blur-[100px] pointer-events-none" />
+      <div className="absolute -bottom-40 -right-40 h-80 w-80 rounded-full bg-red-950/15 blur-[100px] pointer-events-none" />
+
+      <div className="absolute top-4 right-4">
+        <LocaleSwitcher variant="landing" />
+      </div>
+
+      <div className="relative flex flex-col items-center text-center gap-8">
+        <div className="inline-flex items-center gap-2 rounded-full border border-red-900/30 bg-red-950/10 px-4 py-1.5 text-xs font-semibold tracking-wider text-red-500 uppercase">
+          <Eye className="h-3.5 w-3.5 animate-pulse text-red-600" />
+          {t("badge")}
         </div>
 
-        <div className="max-w-2xl space-y-4">
-          <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-6xl">
-            Entre com sua conta Google
+        <div className="space-y-3">
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-zinc-100 font-serif">
+            Lore<span className="text-red-600 drop-shadow-[0_0_8px_rgba(220,38,38,0.5)]">Forge</span>
           </h1>
-          <p className="max-w-xl text-base leading-7 text-slate-300 sm:text-lg">
-            Autenticação OAuth2 com access token, refresh token e sessão
-            rotacionada no backend.
+          <p className="text-zinc-400 max-w-sm mx-auto text-sm leading-relaxed">
+            {t("tagline")}
           </p>
         </div>
 
-        <a
-          href={authUrl}
-          className="inline-flex h-12 items-center justify-center gap-3 rounded-full bg-white px-6 text-sm "
-        >
-          <GoogleLogo />
-          <span className="font-semibold text-slate-950 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-white/70 focus:ring-offset-2 focus:ring-offset-slate-950">Logar com o Google</span>
-        </a>
+        <div className="w-full flex flex-col gap-4 items-center">
+          <a
+            href={authUrl}
+            className="flex w-full h-11 items-center justify-center gap-3 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-100 font-semibold text-sm hover:bg-zinc-700 transition-all duration-200 shadow-md hover:shadow-[0_0_15px_rgba(255,255,255,0.06)] focus:outline-none focus:ring-2 focus:ring-red-600"
+          >
+            <GoogleLogo />
+            <span>{t("signInGoogle")}</span>
+          </a>
+
+          {isDev && (
+            <a
+              href={bypassUrl}
+              className="flex w-full h-10 items-center justify-center gap-2 rounded-lg border border-red-900/40 bg-red-950/20 text-red-400 font-medium text-xs hover:bg-red-950/40 transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-red-600"
+            >
+              <ShieldAlert className="h-4 w-4 text-red-500" />
+              <span>{t("devBypass")}</span>
+            </a>
+          )}
+        </div>
+
+        <div className="text-[10px] text-zinc-600 border-t border-zinc-900 w-full pt-4 font-mono uppercase tracking-widest">
+          {t("disclaimer")}
+        </div>
       </div>
     </section>
   );
 }
-
