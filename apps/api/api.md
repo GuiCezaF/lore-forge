@@ -109,6 +109,14 @@ Prioridade de cobertura:
 
 - Dockerfile, CI com `test` + `openapi:export`, e2e HTTP
 
+### Recap de sessão (Fase 8) — `src/session-recap/`
+
+- Agregação determinística (itens, log de dados, docs, quadro)
+- LLM opcional: `SESSION_RECAP_AI_ENABLED`, guard `canUseAi()`
+- Tabelas: `game_sessions`, `session_recaps`
+- Endpoints: finalize, recap (rascunho), send
+- Ver [plano-mvp.md § Fase 8](../../plano-mvp.md#fase-8--recap-de-sessão-pós-mvp)
+
 ## Estrutura prevista
 
 ```

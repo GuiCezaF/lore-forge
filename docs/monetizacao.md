@@ -75,6 +75,8 @@ apps/web/src/
 - Endpoint futuro: `GET /users/me` retorna `{ plan }`; web usa em `useShowAds`
 - Pagamento (Stripe / Google Play billing web): **fora do MVP** — só documentar como Fase 9
 
+**Recap de sessão com IA (Fase 8):** ver [plano-mvp.md § Fase 8](../plano-mvp.md#fase-8--recap-de-sessão-pós-mvp). Flags `SESSION_RECAP_AI_ENABLED` (default `false`) e `SESSION_RECAP_AI_ALLOW_COMMERCIAL` (default `false`). Uso interno: ligar a primeira flag no `.env` privado.
+
 ---
 
 ## Fase no plano

@@ -76,6 +76,31 @@ Com monetização ativa (AdSense ou Premium), o app **não pode conter** materia
 
 > Se no futuro existir tier 100% gratuito sem monetização, conteúdo com IA exigiria aviso *"Contém material gerado por inteligência artificial"* próximo ao selo.
 
+### 3.5 Recap de sessão com IA (Fase 8)
+
+Feature planejada **pós-MVP** ([plano-mvp.md § Fase 8](../../plano-mvp.md#fase-8--recap-de-sessão-pós-mvp)): mestre finaliza a sessão e envia recap aos jogadores.
+
+| Componente | Conformidade |
+|------------|--------------|
+| Recap **estruturado** (itens, combates, notas agregadas) | **Permitido** — dados dos usuários, sem LLM |
+| Trecho **narrativo por IA** | **Condicional** — ver flags abaixo |
+
+**Feature flags (API):**
+
+| Variável | Default produção comercial | Uso interno (mesa fechada) |
+|----------|--------------------------|----------------------------|
+| `SESSION_RECAP_AI_ENABLED` | `false` | `true` |
+| `SESSION_RECAP_AI_ALLOW_COMMERCIAL` | `false` | `false` |
+
+**Regras:**
+
+- Com AdSense ou Premium ativos, IA só entra em produção se `SESSION_RECAP_AI_ALLOW_COMMERCIAL=true` **e** houver ok formal da licença OP (ou nova versão da licença).
+- Deploy interno/privado (sem monetização, mesa ≤10 pessoas): `SESSION_RECAP_AI_ENABLED=true` — escopo “caseiro” da Parte 1; exibir aviso de IA no recap se aplicável.
+- Guard **server-side** (`SessionRecapService.canUseAi()`); frontend consulta `sessionRecapAiAvailable` — nunca confiar só em env do client.
+- Mestre sempre revisa rascunho antes de enviar; IA não publica automaticamente.
+
+Atualizar este guia quando a equipe Ordem Paranormal esclarecer uso de IA em VTT com ads.
+
 ---
 
 ## 4. Obrigações de implementação
@@ -126,6 +151,7 @@ Campanhas de horror/terror são responsabilidade dos usuários. O app **não** p
 | **2** | Docs do mestre: usuário cria conteúdo — app não inclui texto oficial |
 | **4–6** | Tokens/mapas: assets próprios ou upload do usuário; sem biblioteca de arte oficial |
 | **7** | Selo visível em produção; política de privacidade; **zero IA** com AdSense ativo; revisão final de copy/marketing |
+| **8** | Recap de sessão: estruturado sempre; IA só com `SESSION_RECAP_AI_*` e guard de conformidade |
 
 ---
 

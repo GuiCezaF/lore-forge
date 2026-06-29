@@ -193,6 +193,19 @@ Detalhes: [monetizacao.md](monetizacao.md)
 | RF-13.7 | Com monetização ativa (AdSense/Premium), app não contém material gerado por IA |
 | RF-13.8 | Política de privacidade publicada; tratamento de dados conforme LGPD |
 
+### RF-14 — Recap de sessão (Fase 8, pós-MVP)
+
+| ID | Requisito |
+|----|-----------|
+| RF-14.1 | Mestre pode **finalizar** uma sessão de campanha (registro com início/fim) |
+| RF-14.2 | Sistema gera recap **estruturado** agregando itens, combates (log), notas e docs da sessão |
+| RF-14.3 | Mestre revisa/edita o recap antes de **enviar aos jogadores** da campanha |
+| RF-14.4 | Recaps ficam persistidos e consultáveis (`session_recaps`) |
+| RF-14.5 | Trecho narrativo por IA só existe com `SESSION_RECAP_AI_ENABLED=true` e guard `canUseAi()` na API |
+| RF-14.6 | Com monetização ativa, IA exige `SESSION_RECAP_AI_ALLOW_COMMERCIAL=true` (default `false`) |
+| RF-14.7 | UI não exibe “Gerar resumo com IA” quando `sessionRecapAiAvailable=false` |
+| RF-14.8 | Recap com IA exibe aviso *"Contém material gerado por inteligência artificial"* quando aplicável (Parte 4) |
+
 ---
 
 ## 4. Requisitos não funcionais

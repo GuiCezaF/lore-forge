@@ -1,4 +1,4 @@
-## Visão geral do produto
+# Visão geral do produto
 
 LoreForge é uma plataforma web de mesa virtual para RPG, com foco inicial em **Ordem Paranormal RPG**.
 
@@ -171,6 +171,7 @@ Regras principais:
 - há reconexão automática
 - presença de entrada e saída é broadcastada
 - o sistema deve suportar pelo menos 4 clientes simultâneos por campanha
+- **Fase 8 (pós-MVP):** mestre finaliza sessão e envia recap estruturado aos jogadores; recap narrativo por IA com feature flag (`SESSION_RECAP_AI_*`)
 
 ### 10. Monetização
 
@@ -240,10 +241,11 @@ LoreForge opera sob a [Licença da Comunidade de Ordem Paranormal v1.0](docs/lic
 - não usar marca, logo ou identidade visual de Ordem Paranormal
 - não reproduzir textos nem imagens dos livros oficiais
 - não incluir conteúdo pré-populado com termos do cânone
-- não incluir material gerado por IA com monetização ativa
+- não incluir material gerado por IA com monetização ativa (recap por IA: Fase 8, feature flag — ver conformidade § 3.5)
 - exibir selo da licença e disclaimer de não oficialidade
 - o MVP não inclui balanceamento de homebrew
 - o Premium não pode bloquear features de jogo no MVP
+- recap de sessão (Fase 8, pós-MVP): estruturado sempre; IA opcional via `SESSION_RECAP_AI_*`
 
 ## Critérios de aceitação do MVP
 

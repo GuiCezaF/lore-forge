@@ -38,6 +38,7 @@ Checkout/pagamento Premium fica **pós-MVP**; o app já nasce preparado (`users.
 - [ ] **Fase 5:** Motor de rolagem OP (pool d20), log compartilhado e validação no backend
 - [ ] **Fase 6:** Quadro React Flow — nós, conexões, strikethrough e sync debounced
 - [ ] **Fase 7:** Testes e2e, CI, deploy, **Google AdSense**, **`/metrics` + analytics**, Grafana, **revisão conformidade licença OP**
+- [ ] **Fase 8:** Finalizar sessão, recap estruturado para jogadores e recap narrativo por IA (**feature flag** — ver [§ Recap de sessão](#fase-8--recap-de-sessão-pós-mvp))
 
 ---
 
@@ -371,6 +372,94 @@ sequenceDiagram
 
 ---
 
+### Fase 8 — Recap de sessão (pós-MVP)
+
+**Objetivo:** ao encerrar uma sessão de campanha, o mestre finaliza a sessão e envia um **recap** aos jogadores — itens encontrados, anotações relevantes, combates (log de rolagens), notas do mestre/jogadores e, opcionalmente, um **texto narrativo gerado por IA**.
+
+**Posição no roadmap:** implementar **após a Fase 7** (MVP em produção). Depende de dados já persistidos nas fases anteriores (fichas, docs, log de dados, quadro).
+
+**Licenciamento:** a Parte 4 da [Licença da Comunidade OP](docs/licenca-ordem-paranormal/LICENCA-COMUNIDADE-v1.0.md) proíbe material gerado por IA em produto **comercializado** (AdSense/Premium). Até esclarecimento oficial ou nova versão da licença:
+
+- o **recap estruturado** (sem LLM) pode ir para produção com monetização;
+- o **trecho narrativo por IA** fica atrás de feature flag, **desligado por padrão** em deploy comercial;
+- uso interno (mesa fechada, ≤10 pessoas, sem ads) pode ligar a flag no `.env` local/privado.
+
+Ver [conformidade-loreforge.md § 3.5](docs/licenca-ordem-paranormal/conformidade-loreforge.md#35-recap-de-sessão-com-ia-fase-8).
+
+#### Recap estruturado (sempre disponível)
+
+| Seção | Fonte de dados |
+|-------|----------------|
+| Itens encontrados | alterações de inventário na sessão / notas do mestre |
+| Anotações importantes | docs públicos, nós do quadro marcados como relevantes |
+| Combates | entradas do log de rolagens (período da sessão) |
+| Notas do mestre | docs `gm-only` selecionados pelo mestre na finalização |
+| Notas dos jogadores | docs/nós criados pelos jogadores na sessão |
+
+Fluxo:
+
+1. Mestre clica **Finalizar sessão** na aba Sessão.
+2. App agrega dados do intervalo da sessão (timestamp início → fim).
+3. Mestre revisa/edita o rascunho antes de enviar.
+4. **Enviar aos jogadores** — notificação in-app + registro persistido (`session_recaps`).
+
+#### Recap narrativo por IA (opcional, feature flag)
+
+Quando a flag estiver ativa, a API chama um provedor LLM configurável para gerar um parágrafo de síntese a partir **somente** dos dados agregados acima (sem inventar lore). O mestre revisa antes do envio.
+
+**Regras de produto:**
+
+- IA **nunca** envia automaticamente — sempre rascunho editável pelo mestre.
+- Com flag desligada, a UI não exibe botão/opção de “Gerar resumo com IA”.
+- Com flag ligada em deploy gratuito interno, exibir aviso *"Contém material gerado por inteligência artificial"* no recap exportado/visualizado (Parte 4 da licença).
+
+#### Feature flags e variáveis de ambiente
+
+| Variável | App | Default | Descrição |
+|----------|-----|---------|-----------|
+| `SESSION_RECAP_AI_ENABLED` | API | `false` | Liga geração narrativa por LLM |
+| `SESSION_RECAP_AI_ALLOW_COMMERCIAL` | API | `false` | Permite IA mesmo com monetização ativa — **só `true` após ok formal da licença OP** |
+| `SESSION_RECAP_AI_PROVIDER` | API | — | Provedor (`openai`, `anthropic`, etc.) |
+| `SESSION_RECAP_AI_MODEL` | API | — | Modelo (ex.: `gpt-4o-mini`) |
+| `SESSION_RECAP_AI_API_KEY` | API | — | Chave do provedor (nunca expor ao web) |
+
+**Guard server-side** (`SessionRecapService.canUseAi()`):
+
+```text
+SESSION_RECAP_AI_ENABLED === true
+AND (
+  SESSION_RECAP_AI_ALLOW_COMMERCIAL === true
+  OR (NEXT_PUBLIC_ADS_ENABLED !== 'true' AND nenhum plano pago ativo)
+)
+```
+
+**Cenários de uso:**
+
+| Cenário | `SESSION_RECAP_AI_ENABLED` | `SESSION_RECAP_AI_ALLOW_COMMERCIAL` |
+|---------|---------------------------|-------------------------------------|
+| Produção com AdSense (padrão) | `false` | `false` |
+| Uso interno com amigos (local/privado) | `true` | `false` |
+| Produção após licença liberar IA | `true` | `true` |
+
+#### Backend (TDD)
+
+- Tabelas: `game_sessions` (início/fim, campanha), `session_recaps` (conteúdo JSON, `ai_generated: boolean`)
+- Módulo `apps/api/src/session-recap/` — agregação, optional LLM, envio
+- Endpoint `POST /campaigns/:id/sessions/:sessionId/finalize`
+- Endpoint `POST /campaigns/:id/sessions/:sessionId/recap` (gerar/atualizar rascunho)
+- Endpoint `POST /campaigns/:id/sessions/:sessionId/recap/send`
+- Testes: flag off → 403/404 em rota de IA; flag on → mock LLM; agregação determinística sempre testada
+
+#### Frontend
+
+- Aba **Sessão:** botão **Finalizar sessão**, preview do recap, editor TipTap leve para ajustes
+- Botão **Gerar resumo com IA** renderizado só se `GET /config` expuser `sessionRecapAiAvailable: true`
+- `session-recap.md` em web e `session-recap.md` na API
+
+**Entregável:** mestre finaliza sessão, envia recap estruturado aos jogadores; recap por IA disponível apenas quando flags e conformidade permitirem.
+
+---
+
 ## Stack por feature (conforme [LoreForge.md](LoreForge.md))
 
 | Feature | Tecnologia |
@@ -390,6 +479,7 @@ sequenceDiagram
 | Monetização Free | Google AdSense (`apps/web`) |
 | Plano usuário | `users.plan` free \| premium (API) |
 | Métricas | Prometheus `/metrics`, Grafana, Plausible/PostHog |
+| Recap de sessão (Fase 8) | Agregação REST + `session_recaps`; LLM opcional via feature flag |
 
 ---
 
@@ -424,6 +514,13 @@ LOG_LEVEL=info
 METRICS_ENABLED=true
 NEXT_PUBLIC_ANALYTICS_ENABLED=false   # true em prod
 NEXT_PUBLIC_PLAUSIBLE_DOMAIN=loreforge.example.com
+
+# Recap de sessão — IA (Fase 8; default desligado)
+SESSION_RECAP_AI_ENABLED=false
+SESSION_RECAP_AI_ALLOW_COMMERCIAL=false   # true somente após ok da licença OP
+SESSION_RECAP_AI_PROVIDER=openai
+SESSION_RECAP_AI_MODEL=gpt-4o-mini
+SESSION_RECAP_AI_API_KEY=
 ```
 
 ---
@@ -438,11 +535,13 @@ NEXT_PUBLIC_PLAUSIBLE_DOMAIN=loreforge.example.com
 | WebSocket instável | Fallback polling a cada 5s para log de dados; reconexão automática |
 | 4+ clientes degradam sync do mapa | Throttle de `camera_sync` (max 10/s); delta updates de posição de token; teste de carga na Fase 7 |
 | Direitos IP Ordem Paranormal | [Licença da Comunidade v1.0](docs/licenca-ordem-paranormal/conformidade-loreforge.md); selo + disclaimer; sem marca/arte oficial; sem IA comercial |
+| Recap com IA em produção comercial | Feature flag `SESSION_RECAP_AI_*`; default off; guard server-side; ver Fase 8 |
 
 ---
 
 ## Fora do MVP (backlog imediato pós-lançamento)
 
+- **Recap de sessão (Fase 8)** — finalizar sessão, recap estruturado; IA narrativa com feature flag ([§ Fase 8](#fase-8--recap-de-sessão-pós-mvp))
 - **Premium checkout** — pagamento para remover anúncios (Stripe ou similar)
 - Balanceador de homebrew (armas, poderes) — já marcado como futuro no doc
 - Sistema genérico / import de outros RPGs
