@@ -2,6 +2,8 @@
 
 Modelo de negócio do LoreForge. No **início**, todas as features do MVP são **free**; monetização via anúncios. **Premium** remove apenas os anúncios — sem paywall de funcionalidades no MVP.
 
+**Licenciamento:** com AdSense ou assinatura Premium, o LoreForge é **conteúdo comercial** (Parte 3 da [Licença da Comunidade de Ordem Paranormal](licenca-ordem-paranormal/LICENCA-COMUNIDADE-v1.0.md)). Implica **proibição de material gerado por IA** no produto. Ver [conformidade-loreforge.md](licenca-ordem-paranormal/conformidade-loreforge.md).
+
 ---
 
 ## Planos
@@ -20,7 +22,7 @@ Nenhuma feature de jogo fica bloqueada no Free. Premium = experiência sem ads.
 ### Pré-requisitos
 
 - Domínio publicado com HTTPS (Cloudflare + Coolify)
-- Política de privacidade e termos de uso publicados (exigência AdSense)
+- Política de privacidade e termos de uso publicados (exigência AdSense + LGPD/licença OP)
 - Conta [Google AdSense](https://www.google.com/adsense/) aprovada para o domínio
 
 ### Variáveis de ambiente
@@ -116,3 +118,4 @@ Correlacionar com analytics: eventos `ad_slot_*` — ver [metricas.md](metricas.
 
 - [Google AdSense — Começar](https://support.google.com/adsense/answer/10162)
 - [Políticas do programa AdSense](https://support.google.com/adsense/answer/48182)
+- [Licença da Comunidade OP — conformidade](licenca-ordem-paranormal/conformidade-loreforge.md)

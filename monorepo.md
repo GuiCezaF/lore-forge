@@ -7,7 +7,8 @@ Visão geral da organização do código. Dois apps deployáveis, **sem pacotes 
 | Arquivo | Conteúdo |
 |---------|----------|
 | [README.md](README.md) | Visão geral, setup e links |
-| [LICENSE.md](LICENSE.md) | Licença proprietária (Guilherme Cezarino Felipe) |
+| [LICENSE](LICENSE) | Licença Apache 2.0 do código LoreForge |
+| [docs/licenca-ordem-paranormal/](docs/licenca-ordem-paranormal/) | Licença da Comunidade OP e conformidade |
 | [LoreForge.md](LoreForge.md) | Requisitos funcionais e stack |
 | [plano-mvp.md](plano-mvp.md) | Plano de desenvolvimento, fases e critérios de aceite |
 | [apps/web/web.md](apps/web/web.md) | Frontend Next.js |
@@ -16,6 +17,8 @@ Visão geral da organização do código. Dois apps deployáveis, **sem pacotes 
 | [docs/requisitos.md](docs/requisitos.md) | Requisitos funcionais e não funcionais |
 | [docs/metricas.md](docs/metricas.md) | Métricas técnicas, produto, SaaS e observabilidade |
 | [docs/monetizacao.md](docs/monetizacao.md) | SaaS Free/Premium e setup Google AdSense |
+| [docs/licenca-ordem-paranormal/](docs/licenca-ordem-paranormal/) | Licença OP v1.0 e conformidade LoreForge |
+| [docs/assets/](docs/assets/) | Selos oficiais da licença OP |
 | [docs/loreforge-arquitetura.drawio](docs/loreforge-arquitetura.drawio) | Diagramas draw.io (arquitetura, fluxo, deploy) |
 
 ---
@@ -29,8 +32,11 @@ LoreForge/
 │   └── api/                 # @loreforge/api — NestJS
 ├── docker-compose.yml       # PostgreSQL, Redis, MinIO (dev)
 ├── README.md
-├── LICENSE.md
 ├── LICENSE
+├── NOTICE
+├── docs/
+│   ├── assets/              # selos licença OP (PNG)
+│   └── licenca-ordem-paranormal/
 ├── LoreForge.md
 ├── plano-mvp.md
 └── monorepo.md
@@ -246,6 +252,7 @@ Detalhes: [plano-mvp.md](plano-mvp.md#checklist-de-fases).
 - [ ] Regras Ordem Paranormal autoritativas só em `apps/api`
 - [ ] Swagger acessível em `/api/docs` desde a Fase 0
 - [ ] `/metrics` Prometheus + analytics de produto configurados
+- [ ] Conformidade Licença da Comunidade OP documentada e verificada
 - [ ] Todo módulo API com `.md` + testes; web com `.md` + testes por domínio
 - [ ] `pnpm test` passa na raiz (api + web)
 - [ ] Build de produção gera imagens Docker independentes para web e api

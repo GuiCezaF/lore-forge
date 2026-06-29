@@ -158,6 +158,16 @@ Conteúdo mínimo:
 
 ---
 
+## Conformidade — Licença Ordem Paranormal
+
+Módulos que tocam regras ou UI do sistema OP devem referenciar [conformidade-loreforge.md](licenca-ordem-paranormal/conformidade-loreforge.md):
+
+- `src/rpg/` — terminologia permitida; sem texto oficial dos livros
+- componentes de ficha — sem templates de cânone
+- `legal/` — selo e disclaimer obrigatórios desde a Fase 0
+
+---
+
 ## Referências
 
 - [NestJS Swagger](https://docs.nestjs.com/openapi/introduction)

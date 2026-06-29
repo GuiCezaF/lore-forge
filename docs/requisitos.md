@@ -3,7 +3,7 @@
 Documento consolidado de requisitos funcionais (RF) e não funcionais (RNF) do MVP.  
 Diagramas: [loreforge-arquitetura.drawio](loreforge-arquitetura.drawio)
 
-**Referências:** [LoreForge.md](../LoreForge.md) · [plano-mvp.md](../plano-mvp.md) · [monorepo.md](../monorepo.md) · [monetizacao.md](monetizacao.md) · [metricas.md](metricas.md)
+**Referências:** [LoreForge.md](../LoreForge.md) · [plano-mvp.md](../plano-mvp.md) · [monorepo.md](../monorepo.md) · [monetizacao.md](monetizacao.md) · [metricas.md](metricas.md) · [licenca-ordem-paranormal/conformidade-loreforge.md](licenca-ordem-paranormal/conformidade-loreforge.md)
 
 ---
 
@@ -14,7 +14,8 @@ Diagramas: [loreforge-arquitetura.drawio](loreforge-arquitetura.drawio)
 | Item | Descrição |
 |------|-----------|
 | Público | Mestres e jogadores de RPG de mesa |
-| Sistema inicial | Ordem Paranormal RPG |
+| Sistema inicial | Ordem Paranormal RPG (Licença da Comunidade v1.0) |
+| Licenciamento | [conformidade-loreforge.md](licenca-ordem-paranormal/conformidade-loreforge.md) |
 | Escopo MVP | Todas as features de [LoreForge.md](../LoreForge.md), exceto balanceador de homebrew |
 | Modelo | **SaaS** — Free (com ads) + Premium (sem ads); MVP lança só Free funcional |
 | Fora do MVP | Checkout Premium, balanceador homebrew, outros sistemas, áudio/vídeo, offline, app nativo |
@@ -71,7 +72,7 @@ Detalhes: [monetizacao.md](monetizacao.md)
 |----|-----------|
 | RF-03.1 | Jogador pode criar, editar e excluir personagem vinculado à campanha |
 | RF-03.2 | Ficha MVP inclui: identidade (nome, origem, classe, trilha, NEX), atributos (5), recursos (PV, PE, Sanidade), perícias, combate, inventário e notas |
-| RF-03.3 | Dados da ficha são validados pela API (schema Ordem Paranormal) |
+| RF-03.3 | Dados da ficha são validados pela API (schema OP); apenas terminologia permitida pela Licença da Comunidade v1.0 |
 | RF-03.4 | Mestre pode visualizar fichas dos jogadores da campanha |
 | RF-03.5 | Rituais e poderes complexos ficam em campo livre (notas) no MVP |
 
@@ -179,6 +180,19 @@ Detalhes: [monetizacao.md](monetizacao.md)
 | RF-12.8 | Dashboards operacionais (Grafana ou equivalente) em produção |
 | RF-12.9 | Alertas para indisponibilidade, erros 5xx e degradação de latência/sync WS |
 
+### RF-13 — Conformidade Licença Ordem Paranormal
+
+| ID | Requisito |
+|----|-----------|
+| RF-13.1 | App exibe selo oficial da Licença da Comunidade (largura ≥ 10% da viewport ou área equivalente) |
+| RF-13.2 | Footer e página `/legal` exibem disclaimer de conteúdo não oficial sem sugestão de parceria |
+| RF-13.3 | Ficha e motor de dados usam apenas terminologia geral permitida pela licença (Parte 3) |
+| RF-13.4 | App não reproduz textos nem imagens dos livros oficiais |
+| RF-13.5 | App não inclui templates, exemplos ou conteúdo pré-populado com termos do cânone |
+| RF-13.6 | UI não usa marca "Ordem Paranormal", logos oficiais nem identidade visual copiada |
+| RF-13.7 | Com monetização ativa (AdSense/Premium), app não contém material gerado por IA |
+| RF-13.8 | Política de privacidade publicada; tratamento de dados conforme LGPD |
+
 ---
 
 ## 4. Requisitos não funcionais
@@ -254,12 +268,18 @@ Detalhes: [monetizacao.md](monetizacao.md)
 | RNF-08.3 | Storage produção: Cloudflare R2; dev: MinIO |
 | RNF-08.4 | Apps containerizados (Dockerfile web + api) |
 
-### RNF-09 — Legal / IP
+### RNF-09 — Legal / IP (Licença da Comunidade OP v1.0)
 
 | ID | Requisito |
 |----|-----------|
-| RNF-09.1 | Ordem Paranormal tratado como fan content; sem assets oficiais sem licença |
-| RNF-09.2 | Rituais/poderes homebrew fora do escopo de balanceamento no MVP |
+| RNF-09.1 | LoreForge enquadrado como plataforma VTT comercial sob a Licença da Comunidade de Ordem Paranormal v1.0 |
+| RNF-09.2 | Terminologia do sistema limitada ao permitido na Parte 3 (atributos, recursos, origens, classes, etc.) |
+| RNF-09.3 | Proibido uso de termos do cânone em conteúdo do app (exceto Ordo Realitas como termo permitido) |
+| RNF-09.4 | Proibido uso de marca, logo ou identidade visual de Ordem Paranormal |
+| RNF-09.5 | Proibida reprodução de textos/imagens oficiais dos livros |
+| RNF-09.6 | Proibido material gerado por IA em produto comercializado |
+| RNF-09.7 | Selos em `docs/assets/`; cópia servida em `apps/web/public/licenca-op/` |
+| RNF-09.8 | Rituais/poderes homebrew fora do escopo de balanceamento no MVP |
 
 ### RNF-10 — Manutenibilidade
 
@@ -307,6 +327,7 @@ Detalhes: [monetizacao.md](monetizacao.md)
 | RF-10 Swagger | | ✓ | |
 | RF-11 Monetização | ✓ | ✓ | |
 | RF-12 Métricas | ✓ | ✓ | ✓ |
+| RF-13 Licença OP | ✓ | | |
 
 ---
 
@@ -324,6 +345,7 @@ Detalhes: [monetizacao.md](monetizacao.md)
 10. Suite de testes passando
 11. AdSense no Free; sem ads em apresentação e Premium
 12. `/metrics`, analytics de produto e dashboards operacionais
+13. Selo e disclaimer da Licença da Comunidade de Ordem Paranormal; conformidade RF-13
 
 ---
 

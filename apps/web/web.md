@@ -63,6 +63,7 @@ Cada entrega inclui: componentes + testes + atualização do `.md` do domínio.
 
 - Layout, auth UI, Vitest configurado
 - `api-client.md` — como consumir Swagger/OpenAPI
+- **Licença OP:** `LicenseBadge`, disclaimer no footer, rota `/legal`, `legal.md`
 
 ### Fase 7 — Google AdSense + Analytics (tier Free)
 
@@ -88,7 +89,11 @@ apps/web/
 │   │   │   └── presentation.md
 │   │   ├── ads/
 │   │   │   └── ads.md
+│   │   ├── legal/
+│   │   │   └── legal.md          # selo + disclaimer licença OP
 │   │   └── ...
+│   ├── public/
+│   │   └── licenca-op/           # cópia dos selos (origem: docs/assets/)
 │   ├── hooks/
 │   ├── stores/
 │   ├── lib/
@@ -123,3 +128,4 @@ apps/web/
 - Rolagens exibidas conforme resposta autoritativa da API
 - AdSense no Free; ads ocultos em `/present` e quando `plan === 'premium'`
 - Analytics de produto e Web Vitals configurados
+- Selo e disclaimer da Licença da Comunidade de Ordem Paranormal visíveis

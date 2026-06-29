@@ -144,6 +144,7 @@ apps/api/
 - Schema Zod + testes unitários extensivos
 - `rollAttributePool`, `rollSkillTest`, `rollFree`
 - Anti-cheat: recálculo server-side
+- **Licença:** apenas terminologia geral permitida (Parte 3); sem textos oficiais dos livros; ver [conformidade-loreforge.md](../../docs/licenca-ordem-paranormal/conformidade-loreforge.md)
 
 ## Critérios de aceite
 

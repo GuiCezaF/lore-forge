@@ -234,8 +234,14 @@ Ao implementar uma funcionalidade que cruza frontend e backend:
 
 ## Restrições de domínio
 
-- Ordem Paranormal é tratado como fan content
-- não usar assets oficiais sem licença
+LoreForge opera sob a [Licença da Comunidade de Ordem Paranormal v1.0](docs/licenca-ordem-paranormal/LICENCA-COMUNIDADE-v1.0.md) como plataforma VTT comercial. Guia: [conformidade-loreforge.md](docs/licenca-ordem-paranormal/conformidade-loreforge.md).
+
+- usar apenas terminologia geral do sistema permitida pela licença
+- não usar marca, logo ou identidade visual de Ordem Paranormal
+- não reproduzir textos nem imagens dos livros oficiais
+- não incluir conteúdo pré-populado com termos do cânone
+- não incluir material gerado por IA com monetização ativa
+- exibir selo da licença e disclaimer de não oficialidade
 - o MVP não inclui balanceamento de homebrew
 - o Premium não pode bloquear features de jogo no MVP
 
@@ -255,6 +261,7 @@ O MVP só é considerado pronto quando existir:
 - testes automatizados passando
 - ads no `free` e ocultos em `present` e `premium`
 - métricas e analytics básicos operacionais
+- selo e disclaimer da Licença da Comunidade de Ordem Paranormal
 
 ## Arquivos de referência
 
@@ -265,6 +272,7 @@ O MVP só é considerado pronto quando existir:
 - [docs/padroes.md](docs/padroes.md)
 - [docs/monetizacao.md](docs/monetizacao.md)
 - [docs/metricas.md](docs/metricas.md)
+- [docs/licenca-ordem-paranormal/conformidade-loreforge.md](docs/licenca-ordem-paranormal/conformidade-loreforge.md)
 - [apps/web/web.md](apps/web/web.md)
 - [apps/api/api.md](apps/api/api.md)
 - [apps/api/docs/ws-events.md](apps/api/docs/ws-events.md)

@@ -3,7 +3,7 @@
 Plataforma web de mesa virtual para RPG — campanhas, fichas, mapa tabletop em tempo real, rolagem de dados e quadro de investigações em um só lugar.
 
 **Status:** documentação e planejamento (código ainda não iniciado).  
-**Sistema inicial:** [Ordem Paranormal RPG](https://jamboeditora.com.br/produto/ordem-paranormal-rpg/) (fan content — sem assets oficiais sem licença).
+**Sistema inicial:** Ordem Paranormal RPG — compatível com a [Licença da Comunidade de Ordem Paranormal v1.0](docs/licenca-ordem-paranormal/LICENCA-COMUNIDADE-v1.0.md) ([oficial](https://ordemparanormal.com.br/licenca)).
 
 ---
 
@@ -75,6 +75,8 @@ Dois apps **autocontidos** — sem pacotes compartilhados. Comunicação apenas 
 | [docs/padroes.md](docs/padroes.md) | TDD, Swagger, `.md` por módulo, Cypress |
 | [docs/metricas.md](docs/metricas.md) | Observabilidade e analytics |
 | [docs/monetizacao.md](docs/monetizacao.md) | AdSense e planos |
+| [docs/assets/](docs/assets/) | Selos da licença OP (PNG) |
+| [docs/licenca-ordem-paranormal/](docs/licenca-ordem-paranormal/) | Licença OP e conformidade do LoreForge |
 | [docs/loreforge-arquitetura.drawio](docs/loreforge-arquitetura.drawio) | Diagramas (draw.io) |
 | [apps/web/web.md](apps/web/web.md) | Escopo do frontend |
 | [apps/api/api.md](apps/api/api.md) | Escopo do backend |
@@ -204,14 +206,22 @@ Desenvolvimento incremental — ordem sugerida em [plano-mvp.md](plano-mvp.md):
 
 ## Aviso legal — Ordem Paranormal
 
-Ordem Paranormal é produto da **Jambô Editora** e seus criadores. LoreForge é **conteúdo de fã** não oficial, no espírito de ferramentas como fan apps de RPG — sem uso de arte, logotipos ou material protegido sem autorização.
+LoreForge é uma plataforma VTT **não oficial**, publicada sob a [Licença da Comunidade de Ordem Paranormal v1.0](https://ordemparanormal.com.br/licenca). Não possui afiliação, parceria ou endosso de Rafael "Cellbit" Lange, Jambô Editora ou Ordem Paranormal.
+
+- Usa apenas **terminologia geral do sistema** permitida pela licença (atributos, PV, PE, Sanidade, origens, classes, etc.)
+- **Não** reproduz textos nem imagens dos livros oficiais
+- **Não** usa marca, logo ou identidade visual de Ordem Paranormal
+- **Não** inclui conteúdo gerado por IA (requisito de conteúdo comercial)
+
+Guia completo: [docs/licenca-ordem-paranormal/conformidade-loreforge.md](docs/licenca-ordem-paranormal/conformidade-loreforge.md)
 
 ---
 
-## Licença
+## Licenças
 
-Código do LoreForge: [Apache License 2.0](LICENSE).
+| Escopo | Licença |
+|--------|---------|
+| Código-fonte do LoreForge | [Apache License 2.0](LICENSE) |
+| Compatibilidade com Ordem Paranormal RPG | [Licença da Comunidade de Ordem Paranormal v1.0](docs/licenca-ordem-paranormal/LICENCA-COMUNIDADE-v1.0.md) |
 
-Isso cobre o código-fonte do repositório. Marcas, nomes e materiais de
-terceiros, incluindo referência a Ordem Paranormal, continuam pertencendo aos
-respectivos titulares e não recebem autorização adicional por este projeto.
+A licença Apache cobre o código deste repositório. Direitos sobre o universo *Ordem Paranormal* permanecem com Rafael "Cellbit" Lange. O LoreForge opera dentro dos termos da Licença da Comunidade — não substitui nem amplia direitos sobre marcas ou obras oficiais.

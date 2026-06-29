@@ -1,3 +1,16 @@
+## Licenciamento — Ordem Paranormal
+
+LoreForge é compatível com o sistema Ordem Paranormal RPG sob a [Licença da Comunidade de Ordem Paranormal v1.0](docs/licenca-ordem-paranormal/LICENCA-COMUNIDADE-v1.0.md).
+
+- **Enquadramento:** plataforma VTT com monetização (AdSense + Premium) → conteúdo comercial (Parte 3)
+- **Permitido:** terminologia geral do sistema; motor de dados; fichas virtuais
+- **Proibido:** marca/logo oficial; textos/imagens dos livros; termos do cânone; IA em produto comercial
+- **Obrigatório:** selo da licença no app; disclaimer de não oficialidade; LGPD
+
+Ver [docs/licenca-ordem-paranormal/conformidade-loreforge.md](docs/licenca-ordem-paranormal/conformidade-loreforge.md).
+
+---
+
 Requisitos funcionais
 - Login com o Google (oAuth)
 - Gerenciar personagens (CRUD)

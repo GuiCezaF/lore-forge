@@ -17,6 +17,7 @@ Documentação `.md` vive junto aos componentes ou em `src/<dominio>/`.
 | dice | `src/components/dice/dice.md` | 5 |
 | investigation | `src/components/investigation/investigation.md` | 6 |
 | ads | `src/components/ads/ads.md` | 7 |
+| legal | `src/components/legal/legal.md` | 0 |
 | analytics | `src/lib/analytics/analytics.md` | 7 |
 | api client | `src/lib/api/api-client.md` | 0 |
 | websocket | `src/lib/ws/ws-client.md` | 3 |

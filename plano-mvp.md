@@ -6,6 +6,8 @@ Desenvolvimento incremental, sem cronograma fixo. As fases abaixo indicam **orde
 
 O projeto está em fase **greenfield** ([LoreForge.md](LoreForge.md) é o único artefato existente). O MVP inclui **todas** as funcionalidades listadas no documento (exceto balanceador de homebrew), entregues em versão mínima viável, com **Ordem Paranormal RPG** como sistema inicial.
 
+**Licenciamento:** o LoreForge opera sob a [Licença da Comunidade de Ordem Paranormal v1.0](docs/licenca-ordem-paranormal/LICENCA-COMUNIDADE-v1.0.md) como plataforma VTT comercial. Guia de conformidade: [conformidade-loreforge.md](docs/licenca-ordem-paranormal/conformidade-loreforge.md).
+
 **Referência de mercado:** [C.R.I.S.](https://crisordemparanormal.com/) — fichas, campanhas, rolagens e ferramentas do mestre. O LoreForge se diferencia pelo **mapa tabletop em tempo real**, **modo apresentação para transmissões** e **quadro de investigações integrado** (sem abrir múltiplas janelas).
 
 ### Modelo SaaS (Free + Premium)
@@ -28,14 +30,14 @@ Checkout/pagamento Premium fica **pós-MVP**; o app já nasce preparado (`users.
 
 ## Checklist de fases
 
-- [ ] **Fase 0:** Monorepo, Docker, Google OAuth, Drizzle, layout Next.js, **Swagger**, **Jest/Vitest**, **logs + /health**
+- [ ] **Fase 0:** Monorepo, Docker, Google OAuth, Drizzle, layout Next.js, **Swagger**, **Jest/Vitest**, **logs + /health**, **selo + disclaimer OP**
 - [ ] **Fase 1:** CRUD campanhas/personagens, convites, ficha Ordem Paranormal (schema Zod + UI)
 - [ ] **Fase 2:** Documentos TipTap com autosave, permissões GM/jogador e upload R2/MinIO
 - [ ] **Fase 3:** WebSocket Gateway NestJS + Redis pub/sub + **métricas WS**
 - [ ] **Fase 4:** Tabletop PixiJS — mapa, grid, tokens, fog of war, modo apresentação e sync para 4+ clientes
 - [ ] **Fase 5:** Motor de rolagem OP (pool d20), log compartilhado e validação no backend
 - [ ] **Fase 6:** Quadro React Flow — nós, conexões, strikethrough e sync debounced
-- [ ] **Fase 7:** Testes e2e, CI, deploy, **Google AdSense**, **`/metrics` + analytics**, Grafana
+- [ ] **Fase 7:** Testes e2e, CI, deploy, **Google AdSense**, **`/metrics` + analytics**, Grafana, **revisão conformidade licença OP**
 
 ---
 
@@ -151,7 +153,9 @@ flowchart LR
 
 ## Ficha Ordem Paranormal (MVP mínimo)
 
-Campos essenciais para primeira versão (schema JSON tipado em `apps/api/src/rpg/`; formulário espelhado em `apps/web`):
+Campos essenciais para primeira versão (schema JSON tipado em `apps/api/src/rpg/`; formulário espelhado em `apps/web`).
+
+**Conformidade com a licença:** usar apenas terminologia geral permitida (Parte 3). Sem templates ou exemplos com nomes do cânone. Sem reprodução de texto oficial dos livros. Ver [conformidade-loreforge.md](docs/licenca-ordem-paranormal/conformidade-loreforge.md).
 
 | Seção | Campos MVP |
 |-------|-----------|
@@ -197,8 +201,9 @@ Campos essenciais para primeira versão (schema JSON tipado em `apps/api/src/rpg
 - TanStack Query + cliente HTTP
 - Vitest + RTL configurados
 - `api-client.md`, `auth.md`
+- **Licença OP:** componente `LicenseBadge`, disclaimer no layout, `legal.md`
 
-**Entregável:** login Google, dashboard vazio, **`/api/docs` funcional**, `pnpm test` passando nos dois apps.
+**Entregável:** login Google, dashboard vazio, **`/api/docs` funcional**, selo da licença visível, `pnpm test` passando nos dois apps.
 
 ---
 
@@ -334,6 +339,7 @@ sequenceDiagram
 **Google AdSense (tier Free):**
 
 - Conta AdSense + domínio aprovado; política de privacidade publicada
+- **Conformidade licença OP:** produto comercial — sem conteúdo gerado por IA
 - `AdProvider` + `AdSlot` em `apps/web` (client components)
 - Placements: dashboard, campanha, docs — **nunca** em `/present`
 - `useShowAds`: exibe se `plan === 'free'` e `NEXT_PUBLIC_ADS_ENABLED`
@@ -354,7 +360,14 @@ sequenceDiagram
 - Alertas: health down, 5xx, p95 latência, spike reconexões WS
 - Doc: [metricas.md](docs/metricas.md)
 
-**Entregável:** MVP deployável, Free com ads, observável, documentado e testado.
+**Conformidade licença Ordem Paranormal:**
+
+- Selo oficial visível em produção (≥ 10% largura)
+- Disclaimer de não oficialidade em footer e `/legal`
+- Revisão de copy/marketing (sem sugestão de parceria oficial)
+- Checklist: [conformidade-loreforge.md](docs/licenca-ordem-paranormal/conformidade-loreforge.md#6-checklist-de-conformidade-pré-lançamento)
+
+**Entregável:** MVP deployável, Free com ads, observável, documentado, em conformidade com a licença OP e testado.
 
 ---
 
@@ -424,7 +437,7 @@ NEXT_PUBLIC_PLAUSIBLE_DOMAIN=loreforge.example.com
 | Escopo de ficha OP muito grande | MVP cobre 80% da sessão; rituais/poderes como texto livre inicialmente |
 | WebSocket instável | Fallback polling a cada 5s para log de dados; reconexão automática |
 | 4+ clientes degradam sync do mapa | Throttle de `camera_sync` (max 10/s); delta updates de posição de token; teste de carga na Fase 7 |
-| Direitos IP Ordem Paranormal | Fan content policy (como CRIS); não usar assets oficiais sem licença |
+| Direitos IP Ordem Paranormal | [Licença da Comunidade v1.0](docs/licenca-ordem-paranormal/conformidade-loreforge.md); selo + disclaimer; sem marca/arte oficial; sem IA comercial |
 
 ---
 
@@ -454,3 +467,4 @@ NEXT_PUBLIC_PLAUSIBLE_DOMAIN=loreforge.example.com
 11. `pnpm test` passando em api e web; e2e cobrindo fluxos críticos
 12. Google AdSense configurado no tier Free; ads ocultos em `/present` e quando `plan === 'premium'`
 13. `/metrics` Prometheus, analytics de produto e dashboards operacionais configurados
+14. Selo da Licença da Comunidade de Ordem Paranormal visível; disclaimer de não oficialidade; conformidade documentada
