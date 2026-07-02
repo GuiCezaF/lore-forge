@@ -43,8 +43,8 @@ describe('Auth (e2e)', () => {
     await app.close();
   });
 
-  function createSession() {
-    const user = usersService.upsertGoogleUser(googleProfile);
+  async function createSession() {
+    const user = await usersService.upsertGoogleUser(googleProfile);
     return authService.createSession(user);
   }
 
@@ -58,7 +58,7 @@ describe('Auth (e2e)', () => {
     });
 
     it('/auth/me (GET) returns authenticated user with bearer token', async () => {
-      const session = createSession();
+      const session = await createSession();
 
       const response = await request(app.getHttpServer())
         .get('/auth/me')
@@ -70,7 +70,7 @@ describe('Auth (e2e)', () => {
     });
 
     it('/users/me (GET) returns public profile with access cookie', async () => {
-      const session = createSession();
+      const session = await createSession();
 
       const response = await request(app.getHttpServer())
         .get('/users/me')
@@ -84,7 +84,7 @@ describe('Auth (e2e)', () => {
 
   describe('session rotation', () => {
     it('/auth/refresh (POST) rotates cookies and returns user', async () => {
-      const session = createSession();
+      const session = await createSession();
 
       const response = await request(app.getHttpServer())
         .post('/auth/refresh')
@@ -107,7 +107,7 @@ describe('Auth (e2e)', () => {
 
   describe('logout', () => {
     it('/auth/logout (POST) revokes session and clears cookies', async () => {
-      const session = createSession();
+      const session = await createSession();
 
       await request(app.getHttpServer())
         .post('/auth/logout')

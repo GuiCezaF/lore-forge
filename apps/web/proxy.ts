@@ -8,7 +8,16 @@ export function proxy(request: NextRequest) {
 
   const isAuth = !!(accessToken || refreshToken);
 
-  const protectedRoutes = ["/home", "/jogador", "/mestre"];
+  const protectedRoutes = [
+    "/home",
+    "/mestre",
+    "/jogador",
+    "/campaigns",
+    "/characters",
+    "/monsters",
+    "/items",
+    "/profile",
+  ];
   const isProtectedRoute = protectedRoutes.some((route) =>
     pathname.startsWith(route)
   );

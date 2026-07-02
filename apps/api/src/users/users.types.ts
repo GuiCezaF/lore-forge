@@ -5,15 +5,15 @@ export interface UserRecord {
   provider: OAuthProvider;
   providerSubject: string;
   email: string;
+  shortCode: string;
   name: string;
   picture?: string;
   role: AuthRole;
   plan: AuthPlan;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
   lastLoginAt?: string;
-  refreshTokenHash?: string | null;
-  refreshTokenExpiresAt?: string | null;
   tokenVersion: number;
 }
 
@@ -22,10 +22,12 @@ export interface PublicUser {
   email: string;
   name: string;
   picture?: string;
+  shortCode: string;
   provider: OAuthProvider;
   role: AuthRole;
   plan: AuthPlan;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
   lastLoginAt?: string;
 }

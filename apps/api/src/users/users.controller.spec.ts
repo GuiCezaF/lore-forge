@@ -13,11 +13,13 @@ describe('UsersController', () => {
     provider: 'google',
     providerSubject: 'google:sub-1',
     email: 'player@loreforge.test',
+    shortCode: 'lf-abc123',
     name: 'Player',
     role: 'user',
     plan: 'free',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
+    deletedAt: null,
     tokenVersion: 0,
   };
 
@@ -43,15 +45,17 @@ describe('UsersController', () => {
         id: authUser.id,
         email: authUser.email,
         name: authUser.name,
+        shortCode: authUser.shortCode,
         picture: authUser.picture,
         provider: authUser.provider,
         role: authUser.role,
         plan: authUser.plan,
         createdAt: authUser.createdAt,
         updatedAt: authUser.updatedAt,
+        deletedAt: authUser.deletedAt,
         lastLoginAt: authUser.lastLoginAt,
       };
-      usersService.getProfile.mockResolvedValue(profile as any);
+      usersService.getProfile.mockResolvedValue(profile);
 
       const result = await controller.getMe(authUser);
       expect(result).toEqual(profile);

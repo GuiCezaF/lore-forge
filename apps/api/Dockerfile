@@ -8,7 +8,7 @@ RUN corepack enable && corepack prepare pnpm@11.8.0 --activate
 RUN apk add --no-cache libc6-compat
 
 FROM base AS deps
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
@@ -27,7 +27,7 @@ RUN apk add --no-cache wget \
   && addgroup --system --gid 1001 nestjs \
   && adduser --system --uid 1001 --ingroup nestjs nestjs
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
 COPY --from=build --chown=nestjs:nestjs /app/dist ./dist

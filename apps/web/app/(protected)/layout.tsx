@@ -108,28 +108,33 @@ export default function ProtectedLayout({
             <LocaleSwitcher />
 
             {user && (
-              <div className="flex items-center gap-3 border-r border-zinc-900 pr-4">
-                {user.picture ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={user.picture}
-                    alt={user.name}
-                    className="h-8 w-8 rounded-full border border-red-950"
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-full border border-red-950 bg-zinc-900 flex items-center justify-center text-zinc-400">
-                    <User className="h-4 w-4" />
+              <Link
+                href="/profile?edit=1"
+                className="flex items-center gap-3 rounded-xl border border-transparent pr-4 transition hover:border-zinc-900 hover:bg-zinc-900/50"
+              >
+                <div className="flex items-center gap-3 border-r border-zinc-900 pr-4">
+                  {user.picture ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={user.picture}
+                      alt={user.name}
+                      className="h-8 w-8 rounded-full border border-red-950 object-cover"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full border border-red-950 bg-zinc-900 flex items-center justify-center text-zinc-400">
+                      <User className="h-4 w-4" />
+                    </div>
+                  )}
+                  <div className="hidden md:flex flex-col text-left">
+                    <span className="text-sm font-semibold text-zinc-200">
+                      {user.name}
+                    </span>
+                    <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
+                      {t("investigator")}
+                    </span>
                   </div>
-                )}
-                <div className="hidden md:flex flex-col text-left">
-                  <span className="text-sm font-semibold text-zinc-200">
-                    {user.name}
-                  </span>
-                  <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
-                    {t("investigator")}
-                  </span>
                 </div>
-              </div>
+              </Link>
             )}
 
             <button

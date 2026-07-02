@@ -1,63 +1,82 @@
 import {
-  Injectable,
-  UnauthorizedException,
-  NotFoundException,
   Inject,
+  Optional,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { AuthUser, GoogleUserInfo } from '../auth/auth.types';
-import { hashToken, safeEqualHash } from '../auth/jwt';
 import { UserRecord, PublicUser } from './users.types';
 import type { IUserRepository } from '../modules/users/domain/repositories/user.repository.interface';
+import { generateShortCode } from './users.utils';
+import { DATABASE } from '../database/database.constants';
+import type { Database } from '../database/database.types';
+import {
+  authSessions,
+  campaignMembers,
+  campaigns,
+  characters,
+} from '../database/schema';
 
 @Injectable()
 export class UsersService {
   constructor(
     @Inject('IUserRepository')
     private readonly userRepository: IUserRepository,
+    @Optional()
+    @Inject(DATABASE)
+    private readonly db?: Database,
   ) {}
 
   async findPublicById(id: string): Promise<PublicUser> {
-    const user = await this.userRepository.findById(id);
-    if (!user) {
+    const user = await this.findExistingUserById(id);
+    return this.toPublicUser(user);
+  }
+
+  async findPublicByShortCode(shortCode: string): Promise<PublicUser> {
+    const user = await this.userRepository.findByShortCode(shortCode);
+    if (!user || user.deletedAt) {
       throw new NotFoundException('User not found');
     }
     return this.toPublicUser(user);
   }
 
   async findAuthUserById(id: string): Promise<AuthUser> {
-    const user = await this.userRepository.findById(id);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    const user = await this.findExistingUserById(id);
     return this.toAuthUser(user);
   }
 
-  async findAuthUserByProviderSubject(providerSubject: string): Promise<AuthUser | undefined> {
-    const user = await this.userRepository.findByProviderSubject(providerSubject);
-    return user ? this.toAuthUser(user) : undefined;
+  async findAuthUserByProviderSubject(
+    providerSubject: string,
+  ): Promise<AuthUser | undefined> {
+    const user =
+      await this.userRepository.findByProviderSubject(providerSubject);
+    return user && !user.deletedAt ? this.toAuthUser(user) : undefined;
+  }
+
+  async findAllPublicUsers(): Promise<PublicUser[]> {
+    const users = await this.userRepository.findAll();
+    return users.map((user) => this.toPublicUser(user));
   }
 
   async upsertGoogleUser(profile: GoogleUserInfo): Promise<AuthUser> {
     const providerSubject = `google:${profile.sub}`;
     const now = new Date().toISOString();
-    const existing = await this.userRepository.findByProviderSubject(providerSubject);
+    const existing =
+      await this.userRepository.findByProviderSubject(providerSubject);
 
     if (!existing) {
-      const record: UserRecord = {
-        id: randomUUID(),
-        provider: 'google',
+      const record = await this.createUniqueUserRecord({
         providerSubject,
         email: profile.email,
         name: profile.name,
         picture: profile.picture,
-        role: 'user',
-        plan: 'free',
         createdAt: now,
         updatedAt: now,
         lastLoginAt: now,
-        tokenVersion: 0,
-      };
+      });
       await this.userRepository.save(record);
       return this.toAuthUser(record);
     }
@@ -67,6 +86,7 @@ export class UsersService {
       email: profile.email,
       name: profile.name,
       picture: profile.picture,
+      deletedAt: null,
       updatedAt: now,
       lastLoginAt: now,
     };
@@ -75,11 +95,57 @@ export class UsersService {
     return this.toAuthUser(merged);
   }
 
-  async updateLoginMetadata(userId: string): Promise<AuthUser> {
-    const user = await this.userRepository.findById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
+  async updateProfile(
+    userId: string,
+    changes: { name?: string; picture?: string | null },
+  ): Promise<PublicUser> {
+    const user = await this.findExistingUserById(userId);
+    const updated: UserRecord = {
+      ...user,
+      name: changes.name ?? user.name,
+      picture:
+        changes.picture === undefined
+          ? user.picture
+          : (changes.picture ?? undefined),
+      updatedAt: new Date().toISOString(),
+    };
+    await this.userRepository.save(updated);
+    return this.toPublicUser(updated);
+  }
+
+  async deleteAccount(userId: string): Promise<void> {
+    const user = await this.findExistingUserById(userId);
+    const now = new Date().toISOString();
+    await this.userRepository.softDelete(user.id, now);
+    if (!this.db) {
+      return;
     }
+    await this.db.transaction(async (trx) => {
+      await trx
+        .update(campaigns)
+        .set({ ownerUserId: null })
+        .where(eq(campaigns.ownerUserId, user.id));
+      await trx
+        .delete(campaignMembers)
+        .where(eq(campaignMembers.userId, user.id));
+      await trx
+        .update(characters)
+        .set({
+          frozenAt: now,
+          updatedAt: now,
+        })
+        .where(eq(characters.ownerUserId, user.id));
+      await trx
+        .update(authSessions)
+        .set({
+          revokedAt: now,
+        })
+        .where(eq(authSessions.userId, user.id));
+    });
+  }
+
+  async updateLoginMetadata(userId: string): Promise<AuthUser> {
+    const user = await this.findExistingUserById(userId);
     const updated: UserRecord = {
       ...user,
       lastLoginAt: new Date().toISOString(),
@@ -89,87 +155,52 @@ export class UsersService {
     return this.toAuthUser(updated);
   }
 
-  async updateRefreshToken(
-    userId: string,
-    refreshToken: string,
-    expiresAt: Date,
-    tokenVersion: number,
-  ): Promise<AuthUser> {
-    const user = await this.userRepository.findById(userId);
+  async getProfile(userId: string): Promise<PublicUser> {
+    return this.findPublicById(userId);
+  }
+
+  private async findExistingUserById(id: string): Promise<UserRecord> {
+    const user = await this.userRepository.findById(id);
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    if (user.deletedAt) {
+      throw new UnauthorizedException('User account deleted');
+    }
+    return user;
+  }
 
-    const updated: UserRecord = {
-      ...user,
-      refreshTokenHash: hashToken(
-        refreshToken,
-        process.env.JWT_SECRET ?? 'loreforge-dev-secret',
-      ),
-      refreshTokenExpiresAt: expiresAt.toISOString(),
-      tokenVersion,
-      updatedAt: new Date().toISOString(),
+  private async createUniqueUserRecord(options: {
+    providerSubject: string;
+    email: string;
+    name: string;
+    picture?: string;
+    createdAt: string;
+    updatedAt: string;
+    lastLoginAt: string;
+  }): Promise<UserRecord> {
+    let shortCode = generateShortCode();
+
+    while (await this.userRepository.findByShortCode(shortCode)) {
+      shortCode = generateShortCode();
+    }
+
+    return {
+      id: randomUUID(),
+      provider: 'google',
+      providerSubject: options.providerSubject,
+      email: options.email,
+      shortCode,
+      name: options.name,
+      picture: options.picture,
+      role: 'user',
+      plan: 'free',
+      createdAt: options.createdAt,
+      updatedAt: options.updatedAt,
+      lastLoginAt: options.lastLoginAt,
+      tokenVersion: 0,
+      deletedAt: null,
     };
-
-    await this.userRepository.save(updated);
-    return this.toAuthUser(updated);
-  }
-
-  async clearRefreshToken(userId: string): Promise<AuthUser> {
-    const user = await this.userRepository.findById(userId);
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    const updated: UserRecord = {
-      ...user,
-      refreshTokenHash: null,
-      refreshTokenExpiresAt: null,
-      tokenVersion: user.tokenVersion + 1,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await this.userRepository.save(updated);
-    return this.toAuthUser(updated);
-  }
-
-  async validateRefreshToken(
-    userId: string,
-    refreshToken: string,
-    tokenVersion: number,
-  ): Promise<AuthUser> {
-    const user = await this.userRepository.findById(userId);
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    if (!user.refreshTokenHash || !user.refreshTokenExpiresAt) {
-      throw new UnauthorizedException('Refresh token not found');
-    }
-
-    if (Date.parse(user.refreshTokenExpiresAt) <= Date.now()) {
-      throw new UnauthorizedException('Refresh token expired');
-    }
-
-    if (user.tokenVersion !== tokenVersion) {
-      throw new UnauthorizedException('Refresh token version mismatch');
-    }
-
-    const expected = user.refreshTokenHash;
-    const actual = hashToken(
-      refreshToken,
-      process.env.JWT_SECRET ?? 'loreforge-dev-secret',
-    );
-
-    if (!safeEqualHash(expected, actual)) {
-      throw new UnauthorizedException('Refresh token mismatch');
-    }
-
-    return this.toAuthUser(user);
-  }
-
-  async getProfile(userId: string): Promise<PublicUser> {
-    return this.findPublicById(userId);
   }
 
   private toPublicUser(user: UserRecord): PublicUser {
@@ -177,12 +208,14 @@ export class UsersService {
       id: user.id,
       email: user.email,
       name: user.name,
+      shortCode: user.shortCode,
       picture: user.picture,
       provider: user.provider,
       role: user.role,
       plan: user.plan,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      deletedAt: user.deletedAt ?? null,
       lastLoginAt: user.lastLoginAt,
     };
   }
@@ -191,8 +224,6 @@ export class UsersService {
     return {
       ...this.toPublicUser(user),
       providerSubject: user.providerSubject,
-      refreshTokenHash: user.refreshTokenHash ?? null,
-      refreshTokenExpiresAt: user.refreshTokenExpiresAt ?? null,
       tokenVersion: user.tokenVersion,
     };
   }

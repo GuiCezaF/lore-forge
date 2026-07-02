@@ -4,10 +4,7 @@ import { Response, Request } from 'express';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthUser } from './auth.types';
-import {
-  OAUTH_STATE_COOKIE,
-  REFRESH_TOKEN_COOKIE,
-} from './auth.constants';
+import { OAUTH_STATE_COOKIE, REFRESH_TOKEN_COOKIE } from './auth.constants';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -30,11 +27,13 @@ describe('AuthController', () => {
     provider: 'google',
     providerSubject: 'google:sub-1',
     email: 'player@loreforge.test',
+    shortCode: 'lf-abc123',
     name: 'Player',
     role: 'user',
     plan: 'free',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
+    deletedAt: null,
     tokenVersion: 0,
   };
 

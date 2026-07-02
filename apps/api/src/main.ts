@@ -1,17 +1,19 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { loadEnvironment } from './config/environment';
 import { setupSwagger } from './swagger';
 
 async function bootstrap() {
+  const environment = loadEnvironment();
   const app = await NestFactory.create(AppModule);
   app.enableCors({
-    origin: (process.env.FRONTEND_BASE_URL ?? 'http://localhost:3001')
-      .split(',')
-      .map((value) => value.trim()),
+    origin: environment.FRONTEND_BASE_URL.split(',').map((value) =>
+      value.trim(),
+    ),
     credentials: true,
   });
   setupSwagger(app);
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(environment.PORT);
 }
 bootstrap();

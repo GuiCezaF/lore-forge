@@ -15,15 +15,15 @@ export interface AuthUser {
   provider: OAuthProvider;
   providerSubject: string;
   email: string;
+  shortCode: string;
   name: string;
   picture?: string;
   role: AuthRole;
   plan: AuthPlan;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
   lastLoginAt?: string;
-  refreshTokenHash?: string | null;
-  refreshTokenExpiresAt?: string | null;
   tokenVersion: number;
 }
 

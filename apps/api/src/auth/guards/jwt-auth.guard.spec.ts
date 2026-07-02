@@ -3,11 +3,15 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from '../auth.service';
 import { UsersService } from '../../users/users.service';
 import { ACCESS_TOKEN_COOKIE } from '../auth.constants';
+import { InMemoryUserRepository } from '../../modules/users/infrastructure/repositories/in-memory-user.repository';
+import { InMemoryAuthSessionRepository } from '../infrastructure/in-memory-auth-session.repository';
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
   let authService: AuthService;
   let usersService: UsersService;
+  let userRepo: InMemoryUserRepository;
+  let sessionRepo: InMemoryAuthSessionRepository;
 
   const googleProfile = {
     sub: 'guard-google-subject',
@@ -17,8 +21,10 @@ describe('JwtAuthGuard', () => {
 
   beforeEach(() => {
     process.env.JWT_SECRET = 'jwt-guard-test-secret';
-    usersService = new UsersService();
-    authService = new AuthService(usersService);
+    userRepo = new InMemoryUserRepository();
+    sessionRepo = new InMemoryAuthSessionRepository();
+    usersService = new UsersService(userRepo);
+    authService = new AuthService(usersService, sessionRepo);
     guard = new JwtAuthGuard(authService);
   });
 
@@ -43,8 +49,8 @@ describe('JwtAuthGuard', () => {
   }
 
   it('accepts bearer token and attaches user to request', async () => {
-    const user = usersService.upsertGoogleUser(googleProfile);
-    const session = authService.createSession(user);
+    const user = await usersService.upsertGoogleUser(googleProfile);
+    const session = await authService.createSession(user);
     const context = buildContext({
       authorization: `Bearer ${session.accessToken}`,
     });
@@ -55,8 +61,8 @@ describe('JwtAuthGuard', () => {
   });
 
   it('accepts access token from cookie', async () => {
-    const user = usersService.upsertGoogleUser(googleProfile);
-    const session = authService.createSession(user);
+    const user = await usersService.upsertGoogleUser(googleProfile);
+    const session = await authService.createSession(user);
     const context = buildContext({
       cookie: `${ACCESS_TOKEN_COOKIE}=${session.accessToken}`,
     });

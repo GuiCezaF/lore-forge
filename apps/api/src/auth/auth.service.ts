@@ -1,8 +1,11 @@
 import {
   BadRequestException,
+  Inject,
+  Optional,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { Response } from 'express';
 import {
   ACCESS_TOKEN_COOKIE,
@@ -12,14 +15,23 @@ import {
   REFRESH_TOKEN_LIFETIME_SECONDS,
 } from './auth.constants';
 import { AccessTokenClaims, AuthUser, RefreshTokenClaims } from './auth.types';
-import { buildAccessToken, buildRefreshToken, verifyJwt } from './jwt';
+import {
+  buildAccessToken,
+  buildRefreshToken,
+  hashToken,
+  verifyJwt,
+} from './jwt';
 import {
   buildGoogleAuthorizationUrl,
   createRefreshTokenId,
   exchangeGoogleCodeForProfile,
 } from './oauth-google';
 import { verifyOAuthState } from './oauth-state';
+import { getEnvironment } from '../config/environment';
 import { UsersService } from '../users/users.service';
+import type { IAuthSessionRepository } from './auth-session.repository.interface';
+import type { AuthSessionRecord } from './auth-session.types';
+import { InMemoryAuthSessionRepository } from './infrastructure/in-memory-auth-session.repository';
 
 function readCookie(
   cookieHeader: string | undefined,
@@ -37,7 +49,7 @@ function readCookie(
 }
 
 function buildCookieOptions(maxAgeSeconds: number, secure: boolean) {
-  const domain = process.env.COOKIE_DOMAIN;
+  const domain = getEnvironment().COOKIE_DOMAIN;
   return {
     httpOnly: true,
     sameSite: 'lax' as const,
@@ -50,18 +62,34 @@ function buildCookieOptions(maxAgeSeconds: number, secure: boolean) {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly usersService: UsersService) {}
+  private readonly fallbackSessionRepository =
+    new InMemoryAuthSessionRepository();
+
+  constructor(
+    private readonly usersService: UsersService,
+    @Optional()
+    @Inject('IAuthSessionRepository')
+    private readonly authSessionRepository?: IAuthSessionRepository,
+  ) {}
+
+  private getSessionRepository(): IAuthSessionRepository {
+    return this.authSessionRepository ?? this.fallbackSessionRepository;
+  }
+
+  private getEnvironment() {
+    return getEnvironment();
+  }
 
   isProduction(): boolean {
-    return (process.env.NODE_ENV ?? 'development') === 'production';
+    return this.getEnvironment().NODE_ENV === 'production';
   }
 
   getJwtSecret(): string {
-    return process.env.JWT_SECRET ?? 'loreforge-dev-secret';
+    return this.getEnvironment().JWT_SECRET;
   }
 
   getGoogleClientId(): string {
-    const value = process.env.GOOGLE_CLIENT_ID;
+    const value = this.getEnvironment().GOOGLE_CLIENT_ID;
     if (!value) {
       throw new Error('GOOGLE_CLIENT_ID is required');
     }
@@ -69,7 +97,7 @@ export class AuthService {
   }
 
   getGoogleClientSecret(): string {
-    const value = process.env.GOOGLE_CLIENT_SECRET;
+    const value = this.getEnvironment().GOOGLE_CLIENT_SECRET;
     if (!value) {
       throw new Error('GOOGLE_CLIENT_SECRET is required');
     }
@@ -78,21 +106,21 @@ export class AuthService {
 
   getGoogleRedirectUri(): string {
     return (
-      process.env.GOOGLE_OAUTH_REDIRECT_URI ??
+      this.getEnvironment().GOOGLE_OAUTH_REDIRECT_URI ??
       `${this.getApiBaseUrl()}/auth/google/callback`
     );
   }
 
   getApiBaseUrl(): string {
-    return process.env.API_BASE_URL ?? 'http://localhost:3001';
+    return this.getEnvironment().API_BASE_URL;
   }
 
   getFrontendBaseUrl(): string {
-    return process.env.FRONTEND_BASE_URL ?? 'http://localhost:3001';
+    return this.getEnvironment().FRONTEND_BASE_URL;
   }
 
   getPostLoginRedirectUrl(): string {
-    return process.env.POST_LOGIN_REDIRECT_URL ?? this.getFrontendBaseUrl();
+    return this.getEnvironment().POST_LOGIN_REDIRECT_URL;
   }
 
   buildGoogleLogin(): { authorizationUrl: string; oauthStateCookie: string } {
@@ -137,11 +165,17 @@ export class AuthService {
       throw new BadRequestException((error as Error).message);
     }
 
-    const user = await this.usersService.upsertGoogleUser(profilePayload.profile);
+    const user = await this.usersService.upsertGoogleUser(
+      profilePayload.profile,
+    );
     return this.createSession(user);
   }
 
-  async bypassLogin(): Promise<{ user: AuthUser; accessToken: string; refreshToken: string }> {
+  async bypassLogin(): Promise<{
+    user: AuthUser;
+    accessToken: string;
+    refreshToken: string;
+  }> {
     const mockProfile = {
       sub: 'mock-dev-id-123',
       email: 'investigator@loreforge.local',
@@ -157,19 +191,29 @@ export class AuthService {
     accessToken: string;
     refreshToken: string;
   }> {
-    const tokenVersion = user.tokenVersion;
     const refreshTokenId = createRefreshTokenId();
     const refreshToken = buildRefreshToken(
-      this.buildRefreshClaims(user, refreshTokenId, tokenVersion),
+      this.buildRefreshClaims(user, refreshTokenId, user.tokenVersion),
       this.getJwtSecret(),
       REFRESH_TOKEN_LIFETIME_SECONDS,
     );
-    const updatedUser = await this.usersService.updateRefreshToken(
-      user.id,
-      refreshToken,
-      new Date(Date.now() + REFRESH_TOKEN_LIFETIME_SECONDS * 1000),
-      tokenVersion,
-    );
+    const refreshTokenHash = hashToken(refreshToken, this.getJwtSecret());
+    const now = new Date().toISOString();
+    const session: AuthSessionRecord = {
+      id: randomUUID(),
+      userId: user.id,
+      refreshTokenHash,
+      expiresAt: new Date(
+        Date.now() + REFRESH_TOKEN_LIFETIME_SECONDS * 1000,
+      ).toISOString(),
+      createdAt: now,
+      revokedAt: null,
+      userAgent: null,
+      ipAddress: null,
+    };
+
+    await this.getSessionRepository().create(session);
+    const updatedUser = await this.usersService.updateLoginMetadata(user.id);
     const accessToken = buildAccessToken(
       this.buildAccessClaims(updatedUser),
       this.getJwtSecret(),
@@ -200,11 +244,29 @@ export class AuthService {
       throw new UnauthorizedException((error as Error).message);
     }
 
-    const user = await this.usersService.validateRefreshToken(
-      claims.sub,
-      refreshToken,
-      claims.tokenVersion,
+    const session = await this.getSessionRepository().findByRefreshTokenHash(
+      hashToken(refreshToken, this.getJwtSecret()),
     );
+    if (!session) {
+      throw new UnauthorizedException('Refresh token not found');
+    }
+    if (session.revokedAt) {
+      throw new UnauthorizedException('Refresh token revoked');
+    }
+    if (Date.parse(session.expiresAt) <= Date.now()) {
+      throw new UnauthorizedException('Refresh token expired');
+    }
+
+    const user = await this.usersService.findAuthUserById(claims.sub);
+    if (user.tokenVersion !== claims.tokenVersion) {
+      throw new UnauthorizedException('Refresh token version mismatch');
+    }
+
+    await this.getSessionRepository().revokeByRefreshTokenHash(
+      session.refreshTokenHash,
+      new Date().toISOString(),
+    );
+
     return this.createSession(user);
   }
 
@@ -215,11 +277,11 @@ export class AuthService {
     }
 
     try {
-      const claims = verifyJwt<RefreshTokenClaims>(
-        refreshToken,
-        this.getJwtSecret(),
+      verifyJwt<RefreshTokenClaims>(refreshToken, this.getJwtSecret());
+      await this.getSessionRepository().revokeByRefreshTokenHash(
+        hashToken(refreshToken, this.getJwtSecret()),
+        new Date().toISOString(),
       );
-      await this.usersService.clearRefreshToken(claims.sub);
     } catch {
       return;
     }
@@ -260,7 +322,7 @@ export class AuthService {
   }
 
   clearAuthCookies(res: Response): void {
-    const domain = process.env.COOKIE_DOMAIN || undefined;
+    const domain = this.getEnvironment().COOKIE_DOMAIN || undefined;
     res.clearCookie(ACCESS_TOKEN_COOKIE, { path: '/', domain });
     res.clearCookie(REFRESH_TOKEN_COOKIE, { path: '/', domain });
     res.clearCookie(OAUTH_STATE_COOKIE, { path: '/', domain });

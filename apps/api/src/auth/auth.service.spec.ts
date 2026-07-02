@@ -1,17 +1,16 @@
 import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
-import { buildAccessToken } from './jwt';
-import {
-  ACCESS_TOKEN_COOKIE,
-  REFRESH_TOKEN_COOKIE,
-} from './auth.constants';
+import { buildAccessToken, hashToken } from './jwt';
+import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from './auth.constants';
 import { InMemoryUserRepository } from '../modules/users/infrastructure/repositories/in-memory-user.repository';
+import { InMemoryAuthSessionRepository } from './infrastructure/in-memory-auth-session.repository';
 
 describe('AuthService', () => {
   let service: AuthService;
   let usersService: UsersService;
-  let repo: InMemoryUserRepository;
+  let userRepo: InMemoryUserRepository;
+  let sessionRepo: InMemoryAuthSessionRepository;
 
   const googleProfile = {
     sub: 'google-subject-auth',
@@ -24,14 +23,15 @@ describe('AuthService', () => {
     process.env.GOOGLE_CLIENT_ID = 'google-client-id';
     process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret';
 
-    repo = new InMemoryUserRepository();
-    usersService = new UsersService(repo as any);
-    service = new AuthService(usersService);
+    userRepo = new InMemoryUserRepository();
+    sessionRepo = new InMemoryAuthSessionRepository();
+    usersService = new UsersService(userRepo);
+    service = new AuthService(usersService, sessionRepo);
   });
 
   describe('createSession', () => {
     it('returns access and refresh tokens for a user', async () => {
-      const user = await usersService.upsertGoogleUser(googleProfile as any);
+      const user = await usersService.upsertGoogleUser(googleProfile);
       const session = await service.createSession(user);
 
       expect(session.user.id).toBe(user.id);
@@ -39,19 +39,24 @@ describe('AuthService', () => {
       expect(session.refreshToken).toEqual(expect.any(String));
     });
 
-    it('persists refresh token hash in user record', async () => {
-      const user = await usersService.upsertGoogleUser(googleProfile as any);
-      await service.createSession(user);
+    it('persists refresh token in auth sessions table', async () => {
+      const user = await usersService.upsertGoogleUser(googleProfile);
+      const session = await service.createSession(user);
 
-      const stored = await usersService.findAuthUserById(user.id);
-      expect(stored.refreshTokenHash).toEqual(expect.any(String));
-      expect(stored.refreshTokenExpiresAt).toEqual(expect.any(String));
+      const stored = await sessionRepo.findByRefreshTokenHash(
+        hashToken(session.refreshToken, service.getJwtSecret()),
+      );
+
+      expect(stored).toMatchObject({
+        userId: user.id,
+        revokedAt: null,
+      });
     });
   });
 
   describe('verifyAccessToken', () => {
     it('returns user for a valid access token', async () => {
-      const user = await usersService.upsertGoogleUser(googleProfile as any);
+      const user = await usersService.upsertGoogleUser(googleProfile);
       const session = await service.createSession(user);
 
       const verified = await service.verifyAccessToken(session.accessToken);
@@ -60,14 +65,14 @@ describe('AuthService', () => {
       expect(verified.email).toBe(user.email);
     });
 
-    it('rejects token after token version changes', async () => {
-      const user = await usersService.upsertGoogleUser(googleProfile as any);
+    it('rejects token after the account is deleted', async () => {
+      const user = await usersService.upsertGoogleUser(googleProfile);
       const session = await service.createSession(user);
-      await usersService.clearRefreshToken(user.id);
+      await usersService.deleteAccount(user.id);
 
-      await expect(service.verifyAccessToken(session.accessToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.verifyAccessToken(session.accessToken),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('rejects malformed token', async () => {
@@ -79,7 +84,7 @@ describe('AuthService', () => {
 
   describe('refreshFromCookies', () => {
     it('rotates session from refresh cookie', async () => {
-      const user = await usersService.upsertGoogleUser(googleProfile as any);
+      const user = await usersService.upsertGoogleUser(googleProfile);
       const session = await service.createSession(user);
       const cookieHeader = `${REFRESH_TOKEN_COOKIE}=${session.refreshToken}`;
 
@@ -87,7 +92,9 @@ describe('AuthService', () => {
 
       expect(refreshed.user.id).toBe(user.id);
       expect(refreshed.refreshToken).not.toBe(session.refreshToken);
-      expect((await service.verifyAccessToken(refreshed.accessToken)).id).toBe(user.id);
+      expect((await service.verifyAccessToken(refreshed.accessToken)).id).toBe(
+        user.id,
+      );
     });
 
     it('rejects missing refresh cookie', async () => {
@@ -98,16 +105,17 @@ describe('AuthService', () => {
   });
 
   describe('logoutFromCookies', () => {
-    it('clears refresh token for valid session', async () => {
-      const user = await usersService.upsertGoogleUser(googleProfile as any);
+    it('revokes refresh session for valid cookie', async () => {
+      const user = await usersService.upsertGoogleUser(googleProfile);
       const session = await service.createSession(user);
       const cookieHeader = `${REFRESH_TOKEN_COOKIE}=${session.refreshToken}`;
 
       await service.logoutFromCookies(cookieHeader);
 
-      const stored = await usersService.findAuthUserById(user.id);
-      expect(stored.refreshTokenHash).toBeNull();
-      expect(stored.tokenVersion).toBe(user.tokenVersion + 1);
+      const tokenRecord = await sessionRepo.findByRefreshTokenHash(
+        hashToken(session.refreshToken, service.getJwtSecret()),
+      );
+      expect(tokenRecord?.revokedAt).toEqual(expect.any(String));
     });
 
     it('ignores invalid refresh cookie silently', async () => {
@@ -119,7 +127,7 @@ describe('AuthService', () => {
 
   describe('attachAuthCookies / clearAuthCookies', () => {
     it('sets and clears auth cookies on response', async () => {
-      const user = await usersService.upsertGoogleUser(googleProfile as any);
+      const user = await usersService.upsertGoogleUser(googleProfile);
       const session = await service.createSession(user);
       const cookies = new Map<string, string>();
       const cleared = new Set<string>();
@@ -168,7 +176,9 @@ describe('AuthService', () => {
         3600,
       );
 
-      await expect(service.verifyAccessToken(token)).rejects.toThrow(NotFoundException);
+      await expect(service.verifyAccessToken(token)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

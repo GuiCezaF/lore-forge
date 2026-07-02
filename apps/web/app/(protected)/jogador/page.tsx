@@ -1,30 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, User, ArrowLeft, ShieldAlert } from "lucide-react";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
+import { ArrowLeft, Plus, ShieldAlert, UserSearch } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 
-type Character = {
-  id: string;
-  name: string;
-  class: string;
-  nex: number;
-};
-
 export default function JogadorPage() {
-  const t = useTranslations("jogador");
-  const [characters] = useState<Character[]>([]);
-
-  function handleCreateClick() {
-    toast.info(t("toastTitle"), {
-      description: t("toastDescription"),
-      icon: <ShieldAlert className="h-5 w-5 text-red-500" />,
-      duration: 4000,
-    });
-  }
-
   return (
     <div className="flex-1 flex flex-col gap-6 py-4">
       <div className="flex flex-col gap-2">
@@ -33,54 +12,57 @@ export default function JogadorPage() {
           className="inline-flex items-center gap-1 text-xs font-mono uppercase tracking-wider text-zinc-500 hover:text-zinc-300 transition-colors mb-2"
         >
           <ArrowLeft className="h-3 w-3" />
-          {t("backToDashboard")}
+          Voltar para a home
         </Link>
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold font-serif text-zinc-100">
-              {t("title")}
-            </h1>
-            <p className="text-sm text-zinc-500">{t("subtitle")}</p>
-          </div>
+        <div>
+          <h1 className="text-3xl font-bold font-serif text-zinc-100">
+            Painel do jogador
+          </h1>
+          <p className="text-sm text-zinc-500">
+            Entre direto na área de fichas. Só personagens jogáveis aparecem nesse fluxo.
+          </p>
         </div>
       </div>
 
-      {characters.length === 0 ? (
-        <div className="flex-1 min-h-[400px] border border-dashed border-zinc-800 rounded-2xl bg-zinc-950/40 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center max-w-xl mx-auto w-full my-auto">
-          <div className="h-16 w-16 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 mb-6 shadow-inner">
-            <User className="h-7 w-7" />
+      <div className="grid md:grid-cols-[1.2fr_0.8fr] gap-8 mt-4 items-stretch">
+        <Link
+          href="/characters?kind=pc"
+          className="group relative flex flex-col justify-between items-start text-left p-8 sm:p-10 rounded-2xl border border-zinc-900 bg-gradient-to-b from-zinc-950 to-zinc-950 hover:to-zinc-900/40 hover:border-zinc-800 transition-all duration-300 shadow-xl hover:shadow-[0_0_30px_rgba(255,255,255,0.02)] overflow-hidden"
+        >
+          <div className="absolute -top-32 -left-32 h-64 w-64 rounded-full bg-zinc-900/10 group-hover:bg-zinc-800/20 blur-[80px] transition-all duration-300 pointer-events-none" />
+
+          <div className="relative flex flex-col gap-6">
+            <div className="h-12 w-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 group-hover:scale-110 group-hover:border-zinc-500/30 transition-all duration-300">
+              <UserSearch className="h-6 w-6" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold font-serif text-zinc-100 group-hover:text-zinc-200 transition-colors">
+                Abrir fichas
+              </h2>
+              <p className="text-sm text-zinc-400 leading-relaxed max-w-sm">
+                Criação, edição e remoção já estão disponíveis. O CRUD foi mantido em uma tela separada para não poluir o painel inicial.
+              </p>
+            </div>
           </div>
-          <h2 className="text-lg font-bold text-zinc-300 mb-2">
-            {t("emptyTitle")}
+
+          <div className="mt-8 flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-zinc-400 group-hover:text-zinc-300 font-semibold">
+            <Plus className="h-3.5 w-3.5" />
+            <span>Gerenciar personagens</span>
+          </div>
+        </Link>
+
+        <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 p-6">
+          <div className="h-10 w-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400">
+            <ShieldAlert className="h-5 w-5" />
+          </div>
+          <h2 className="mt-4 text-xl font-bold font-serif text-zinc-200">
+            Fluxo focado
           </h2>
-          <p className="text-sm text-zinc-500 max-w-xs mb-8">
-            {t("emptyDescription")}
+          <p className="mt-2 text-sm leading-6 text-zinc-500">
+            O jogador vê apenas o que precisa: campanha, nome, descrição, dados da ficha e imagem opcional.
           </p>
         </div>
-      ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {characters.map((char) => (
-            <div
-              key={char.id}
-              className="p-6 rounded-xl border border-zinc-900 bg-zinc-950 flex flex-col gap-4"
-            >
-              <h3 className="font-bold text-lg text-zinc-200">{char.name}</h3>
-              <div className="flex justify-between text-xs text-zinc-500 font-mono">
-                <span>{char.class}</span>
-                <span>NEX {char.nex}%</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <button
-        onClick={handleCreateClick}
-        aria-label={t("createAriaLabel")}
-        className="fixed bottom-8 right-8 h-14 w-14 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-lg shadow-red-950/40 hover:shadow-[0_0_20px_rgba(220,38,38,0.6)] hover:scale-105 transition-all duration-300 z-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
-      >
-        <Plus className="h-6 w-6 font-bold" />
-      </button>
+      </div>
     </div>
   );
 }

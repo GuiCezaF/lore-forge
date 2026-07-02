@@ -39,7 +39,9 @@ describe('jwt', () => {
     it('rejects token signed with another secret', () => {
       const token = createJwt(accessClaims, SECRET, 3600);
 
-      expect(() => verifyJwt(token, 'other-secret')).toThrow('Invalid signature');
+      expect(() => verifyJwt(token, 'other-secret')).toThrow(
+        'Invalid signature',
+      );
     });
 
     it('rejects expired token', () => {
@@ -49,7 +51,9 @@ describe('jwt', () => {
     });
 
     it('rejects malformed token', () => {
-      expect(() => verifyJwt('invalid.token', SECRET)).toThrow('Malformed token');
+      expect(() => verifyJwt('invalid.token', SECRET)).toThrow(
+        'Malformed token',
+      );
     });
   });
 
@@ -61,7 +65,9 @@ describe('jwt', () => {
 
     it('builds verifiable refresh token', () => {
       const token = buildRefreshToken(refreshClaims, SECRET, 3600);
-      expect(verifyJwt<RefreshTokenClaims>(token, SECRET).jti).toBe('refresh-id');
+      expect(verifyJwt<RefreshTokenClaims>(token, SECRET).jti).toBe(
+        'refresh-id',
+      );
     });
   });
 

@@ -18,58 +18,10 @@
   },
   "layout": {
     "home": "Home",
+    "master": "Master",
+    "player": "Player",
     "investigator": "Investigator",
     "logout": "Logout",
     "loading": "Connecting to the Veil..."
-  },
-  "home": {
-    "subtitle": "Select Your Path",
-    "title": "How will you face the entities?",
-    "gm": {
-      "title": "Gamemaster",
-      "description": "Control the secrets, design the investigation, orchestrate encounters with terrifying entities, and guide your players through the darkness.",
-      "action": "Enter GM Command"
-    },
-    "player": {
-      "title": "Investigator",
-      "description": "Manage your character sheets, track your traits and attributes, roll your dice pool, and prepare to face what lies in the shadows.",
-      "action": "Manage Investigator"
-    }
-  },
-  "jogador": {
-    "backToDashboard": "Back to Dashboard",
-    "title": "Investigators",
-    "subtitle": "Manage and select your active character sheets.",
-    "emptyTitle": "No character sheets?",
-    "emptyDescription": "Create one by clicking the + button at the bottom right corner of your screen.",
-    "createAriaLabel": "Create Character",
-    "toastTitle": "Character creation is under development.",
-    "toastDescription": "You will soon be able to build and configure your investigator sheet."
-  },
-  "mestre": {
-    "backToDashboard": "Back to Dashboard",
-    "title": "Gamemaster Command",
-    "subtitle": "Manage your campaigns, track monsters, and construct NPCs.",
-    "campaigns": {
-      "title": "Campaigns",
-      "description": "Manage your campaigns. Click the + button to create a new campaign.",
-      "create": "Create Campaign",
-      "toastTitle": "Campaign creation is under development.",
-      "toastDescription": "You will soon be able to start new paranormal campaigns."
-    },
-    "monsters": {
-      "title": "Monsters",
-      "description": "Manage your monsters. Click the + button to create a new monster.",
-      "create": "Create Monster",
-      "toastTitle": "Monster creation is under development.",
-      "toastDescription": "A custom creature forge is coming soon to design entities."
-    },
-    "npcs": {
-      "title": "NPCs",
-      "description": "Manage your NPCs. Click the + button to create a new NPC.",
-      "create": "Create NPC",
-      "toastTitle": "NPC creation is under development.",
-      "toastDescription": "You will soon be able to register ally and enemy NPCs."
-    }
   }
 }

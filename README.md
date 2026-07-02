@@ -56,7 +56,8 @@ LoreForge/
 │   ├── web/          # @loreforge/web — Next.js
 │   └── api/          # @loreforge/api — NestJS (DDD by modules)
 ├── docs/             # Requisitos, padrões, métricas, diagramas
-├── docker-compose.yml
+├── docker-compose.local.yml
+├── docker-compose.production.yml
 ├── README.md
 └── LICENSE
 ```
@@ -91,7 +92,7 @@ Dois apps **autocontidos** — sem pacotes compartilhados. Comunicação apenas 
 
 ---
 
-## Setup local (previsto)
+## Setup local
 
 ```bash
 # Clonar e instalar
@@ -99,11 +100,14 @@ git clone <repo-url> loreforge
 cd loreforge
 pnpm install
 
-# Infra local
-docker compose up -d
+# Infra local apenas
+docker compose -f docker-compose.local.yml up -d
+
+# Stack local completa
+docker compose -f docker-compose.local.yml --profile app up --build
 
 # Migrations
-pnpm db:migrate
+pnpm --filter @loreforge/api db:migrate
 
 # Desenvolvimento
 pnpm dev
@@ -127,7 +131,8 @@ pnpm test             # unit + integração
 pnpm test:e2e         # e2e (Jest na API, Cypress no web)
 pnpm lint             # lint nos apps
 pnpm openapi:export   # exporta openapi.json da API
-pnpm docker:up        # sobe PostgreSQL, Redis, MinIO
+docker compose -f docker-compose.local.yml up -d                  # infra
+docker compose -f docker-compose.local.yml --profile app up --build
 ```
 
 ---

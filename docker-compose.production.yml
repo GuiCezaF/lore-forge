@@ -6,8 +6,9 @@
 #   docker compose --env-file apps/web/.env -f docker-compose.production.yml up --build -d
 #
 # --env-file apps/web/.env expõe NEXT_PUBLIC_API_URL para o build da imagem web.
+# Para produção real, sobrescreva também POSTGRES_PASSWORD se usar o profile "infra".
 #
-# usar serviços gerenciados externos:
+# usar PostgreSQL/Redis do próprio compose:
 #   docker compose -f docker-compose.production.yml --profile infra up --build -d
 #
 # Storage em produção: Cloudflare R2 (não inclui MinIO).
@@ -47,7 +48,7 @@ services:
       dockerfile: Dockerfile
       target: production
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
     restart: unless-stopped
     env_file:
       - ./apps/web/.env
@@ -71,12 +72,14 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD obrigatório}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
       POSTGRES_DB: ${POSTGRES_DB:-loreforge}
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-loreforge}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -91,6 +94,8 @@ services:
     command: redis-server --save 60 1 --appendonly yes
     volumes:
       - redis_prod_data:/data
+    ports:
+      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

@@ -13,11 +13,13 @@ describe('RolesGuard', () => {
     provider: 'google',
     providerSubject: 'google:sub-1',
     email: 'player@loreforge.test',
+    shortCode: 'lf-abc123',
     name: 'Player',
     role: 'user',
     plan: 'free',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    deletedAt: null,
     tokenVersion: 0,
   };
 

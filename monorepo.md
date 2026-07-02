@@ -30,7 +30,8 @@ LoreForge/
 ├── apps/
 │   ├── web/                 # @loreforge/web — Next.js
 │   └── api/                 # @loreforge/api — NestJS (DDD by modules)
-├── docker-compose.yml       # PostgreSQL, Redis, MinIO (dev)
+├── docker-compose.local.yml
+├── docker-compose.production.yml
 ├── README.md
 ├── LICENSE
 ├── NOTICE
@@ -204,7 +205,7 @@ CRUD → REST (TanStack Query). Sessão ao vivo → WebSocket. Rolagem de ficha 
 ## Infraestrutura local
 
 ```yaml
-# docker-compose.yml (previsto)
+# docker-compose.local.yml
 services:
   postgres:   # DATABASE_URL
   redis:      # REDIS_URL
@@ -248,7 +249,7 @@ Detalhes: [plano-mvp.md](plano-mvp.md#checklist-de-fases).
 - [ ] `pnpm install` resolve apenas `apps/web` e `apps/api`
 - [ ] Nenhum import cruzado entre apps (só HTTP/WS)
 - [ ] `pnpm dev` sobe web + api com hot reload
-- [ ] `docker compose up` sobe PG, Redis e MinIO
+- [ ] `docker compose -f docker-compose.local.yml up` sobe PG, Redis e MinIO
 - [ ] Regras Ordem Paranormal autoritativas só em `apps/api`
 - [ ] Swagger acessível em `/api/docs` desde a Fase 0
 - [ ] `/metrics` Prometheus + analytics de produto configurados

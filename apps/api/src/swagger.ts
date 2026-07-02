@@ -10,6 +10,11 @@ export function setupSwagger(app: INestApplication): void {
     .addTag('app')
     .addTag('auth')
     .addTag('users')
+    .addTag('campaigns')
+    .addTag('characters')
+    .addTag('monsters')
+    .addTag('items')
+    .addTag('media')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

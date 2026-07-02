@@ -90,7 +90,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Bypass Google OAuth2 for local development' })
   async bypass(@Res() res: Response) {
     if (this.authService.isProduction()) {
-      throw new UnauthorizedException('Bypass only available in development mode');
+      throw new UnauthorizedException(
+        'Bypass only available in development mode',
+      );
     }
     const session = await this.authService.bypassLogin();
     this.authService.attachAuthCookies(res, session);

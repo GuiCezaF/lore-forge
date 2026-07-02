@@ -53,7 +53,9 @@ describe('oauth-state', () => {
       };
       const token = signOAuthState(expiredState, SECRET);
 
-      expect(() => verifyOAuthState(token, SECRET)).toThrow('OAuth state expired');
+      expect(() => verifyOAuthState(token, SECRET)).toThrow(
+        'OAuth state expired',
+      );
     });
   });
 });

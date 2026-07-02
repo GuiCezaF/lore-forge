@@ -12,11 +12,26 @@ export class InMemoryUserRepository implements IUserRepository {
     return user;
   }
 
-  async findByProviderSubject(providerSubject: string): Promise<UserRecord | null> {
+  async findByProviderSubject(
+    providerSubject: string,
+  ): Promise<UserRecord | null> {
     const userId = this.usersByProviderSubject.get(providerSubject);
     if (!userId) return null;
     const user = this.usersById.get(userId) ?? null;
     return user;
+  }
+
+  async findByShortCode(shortCode: string): Promise<UserRecord | null> {
+    for (const user of this.usersById.values()) {
+      if (user.shortCode === shortCode) {
+        return user;
+      }
+    }
+    return null;
+  }
+
+  async findAll(): Promise<UserRecord[]> {
+    return [...this.usersById.values()].filter((user) => !user.deletedAt);
   }
 
   async save(user: UserRecord): Promise<void> {
@@ -24,10 +39,14 @@ export class InMemoryUserRepository implements IUserRepository {
     this.usersByProviderSubject.set(user.providerSubject, user.id);
   }
 
-  async remove(id: string): Promise<void> {
+  async softDelete(id: string, deletedAt: string): Promise<void> {
     const user = this.usersById.get(id);
     if (!user) return;
-    this.usersById.delete(id);
-    this.usersByProviderSubject.delete(user.providerSubject);
+    this.usersById.set(id, {
+      ...user,
+      deletedAt,
+      updatedAt: deletedAt,
+      tokenVersion: user.tokenVersion + 1,
+    });
   }
 }
