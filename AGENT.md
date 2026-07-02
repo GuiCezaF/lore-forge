@@ -1,340 +1,79 @@
-# Visão geral do produto
-
-LoreForge é uma plataforma web de mesa virtual para RPG, com foco inicial em **Ordem Paranormal RPG**.
-
-Escopo do MVP:
-
-- login via Google OAuth
-- campanhas e personagens
-- documentos rich-text do mestre
-- mapa tabletop em tempo real
-- modo apresentação
-- rolagem de dados com regras de Ordem Paranormal
-- quadro de investigações
-
-Fora do MVP:
-
-- checkout Premium
-- balanceador de homebrew
-- outros sistemas de RPG
-- áudio e vídeo
-- app nativo
-
-## Arquitetura do monorepo
-
-O projeto é organizado como um monorepo com **dois apps autocontidos**:
-
-- `apps/web`: frontend Next.js
-- `apps/api`: backend NestJS
+# Guia operacional do projeto
 
-Regra central:
-
-- **não existe compartilhamento de pacotes entre web e api**
-- a comunicação acontece apenas por **REST** e **WebSocket**
-- a API é a **fonte da verdade** para regras de negócio, validação e persistência
-- o frontend espelha contratos e tipos para consumo, mas não define regra autoritativa
+LoreForge é uma plataforma web de mesa virtual para RPG, com foco inicial em Ordem Paranormal RPG.
 
-### Fronteira entre apps
+## Referências centrais
 
-`apps/web` é responsável por:
+- [README.md](README.md): entrada rápida do repositório.
+- [docs/produto.md](docs/produto.md): escopo, requisitos, roadmap e critérios de aceite.
+- [docs/arquitetura.md](docs/arquitetura.md): monorepo, DDD, testes, setup e deploy.
+- [docs/contratos.md](docs/contratos.md): REST/OpenAPI e eventos WebSocket.
+- [docs/operacao.md](docs/operacao.md): monetização, métricas, variáveis de ambiente e operação.
+- [docs/licenca-ordem-paranormal.md](docs/licenca-ordem-paranormal.md): conformidade legal.
 
-- UI
-- estado de tela
-- cliente HTTP
-- cliente WebSocket
-- validações de formulário
-- renderização de mapa, quadro e docs
+## Arquitetura
 
-`apps/api` é responsável por:
+O repositório tem dois apps autocontidos:
 
-- autenticação
-- persistência
-- RBAC
-- regras de Ordem Paranormal
-- validação autoritativa
-- gateway WebSocket
-- storage
-- métricas e healthchecks
+- `apps/web`: frontend Next.js.
+- `apps/api`: backend NestJS.
 
-## Arquitetura proposta — Domain‑Driven Design (DDD)
+Não há import de código entre os apps. A comunicação acontece apenas por REST/OpenAPI e WebSocket. A API é a fonte da verdade para regras de negócio, validação autoritativa, persistência, RBAC, rolagem de dados, storage e métricas.
 
-Este projeto adota DDD como padrão para organizar o backend (`apps/api`) por bounded contexts e camadas bem definidas. A intenção é aumentar manutenibilidade, permitir testes de domínio isolados e facilitar extração futura para microserviços.
+## Backend
 
-Princípios básicos:
+- Usar NestJS, Drizzle, PostgreSQL, Redis e storage S3 compatível.
+- Organizar contextos com regra relevante usando DDD pragmático: `api`, `application`, `domain`, `infrastructure`.
+- Controllers não contêm regra de negócio.
+- Domain não importa infraestrutura.
+- DTOs de saída não expõem hashes, tokens, segredos ou PII desnecessária.
+- REST é documentado por Swagger em `/api/docs`.
+- WebSocket é documentado em [docs/contratos.md](docs/contratos.md).
 
-- Modelar Bounded Contexts (ex.: users, campaigns, map, documents, dice)
-- Separar camadas: Presentation (API), Application (Use Cases), Domain (Entities, VOs, Domain Services, Repositories interfaces), Infrastructure (ORM, adapters)
-- Manter o domínio livre de dependências de infraestrutura (no máximo interfaces/ports)
-- Repositórios são interfaces no domínio; implementações ficam em infra
-- UseCases (Application Services) orquestram transações, validam políticas de aplicação e coordenam repositórios/domain services
-- Publicar Domain Events dentro do domínio e usar Outbox/Integration Events para integração entre contexts
-
-Estrutura por bounded context (exemplo `users`):
-
-```
-apps/api/src/modules/users/
-  api/
-    controllers/
-    dtos/
-    pipes/
-  application/
-    use-cases/
-    dto/
-    mappers/
-  domain/
-    entities/
-    value-objects/
-    repositories/   # interfaces (ports)
-    services/       # domain services
-    events/
-    errors/
-  infrastructure/
-    orm/            # persistence models / mappings
-    repositories/   # implementations (adapters)
-    services/       # external adapters (email, storage)
-```
-
-Diretrizes práticas:
-
-- Controllers: traduzem HTTP → Application DTOs e chamam UseCases; sem lógica de negócio
-- UseCases: orquestram fluxo, transações e publicação de events; aplicam checagens de aplicação
-- Domain: invariantes, métodos do agregado, VOs e Domain Events
-- Infra: acesso a banco, filas, externos; mapear entre persistence model e domain model
-- Testes: Domain (unit), Application (unit com mocks), Infrastructure (integration)
-
-Segurança e validação:
-
-- Validar todos os inputs com DTOs + class-validator / Zod
-- Verificar ownership e permissões tanto no Application (policies) quanto nas invariantes do Domain
-- Manter DTOs de saída explícitos para evitar exposição de hashes/segredos
-
-Migração incremental:
-
-1. Preparar common module e ValidationPipe global
-2. Fazer piloto com 1 contexto (sugestão: `users`)
-3. Migrar outros contexts gradualmente, mantendo compatibilidade de API
-4. Introduzir Outbox e CQRS onde necessário
-
-## Contratos de integração
-
-### REST
-
-- documentado com Swagger desde o início
-- `/api/docs` é parte do contrato público do backend
-- cada endpoint precisa de tags, summaries e responses documentados
-- o frontend consome o `openapi.json` exportado pela API
-
-### WebSocket
-
-- os eventos são documentados em `apps/api/docs/ws-events.md`
-- o frontend deve espelhar os tipos em `apps/web/src/types/ws-events.ts`
-- payload inbound deve ser validado com Zod
-- a API deve manter a semântica dos eventos como contrato estável
-
-## Regras de negócio consolidadas
-
-### 1. Autenticação e conta
-
-- login exclusivamente via Google OAuth
-- a API emite JWT de acesso e refresh
-- rotas protegidas exigem autenticação
-- o usuário tem plano `free` ou `premium`
-- no MVP, todos os usuários começam em `free`
-
-### 2. Campanhas e papéis
-
-Cada campanha possui membros com papel:
-
-- `gm`
-- `player`
-- `spectator`
-
-Regras principais:
-
-- o mestre cria, edita e remove campanhas das quais é dono
-- jogadores entram por convite
-- espectadores têm acesso somente leitura, principalmente no modo apresentação
-- a tela da campanha organiza a experiência em abas: Personagens, Sessão, Docs, Mapa e Quadro
-
-### 3. Personagens
-
-- personagens são vinculados à campanha
-- a ficha inicial é baseada em Ordem Paranormal RPG
-- a ficha MVP inclui:
-  - identidade
-  - atributos
-  - recursos
-  - perícias
-  - combate
-  - inventário
-  - notas
-- rituais e poderes complexos ficam em campo livre no MVP
-- a API valida a estrutura da ficha
-- o mestre pode visualizar as fichas dos jogadores da campanha
-
-### 4. Documentos do mestre
-
-- documentos são rich-text
-- o mestre controla visibilidade:
-  - somente mestre
-  - visível aos jogadores
-- suportam upload de imagens via URL assinada
-- possuem autosave
-- jogadores só veem documentos públicos
-
-### 5. Mapa tabletop
-
-- o mestre faz upload do mapa
-- o mapa pode ter grid configurável
-- tokens podem ser vinculados a personagens
-- movimentação de tokens sincroniza em tempo real
-- o mestre pode mover qualquer token
-- o jogador só move o próprio token, quando permitido
-- o mapa suporta fog of war
-- zoom e pan fazem parte da experiência
-- a câmera pode ser sincronizada para o modo apresentação
-
-### 6. Modo apresentação
-
-- abre em nova aba em `/campaign/[id]/present`
-- exibe apenas o canvas do mapa
-- não mostra sidebars nem controles de edição
-- usa a mesma autenticação da sessão principal
-- o papel é `spectator`
-- nunca exibe anúncios
-- pode alternar entre visão do mestre e mapa revelado
-
-### 7. Rolagem de dados
-
-- jogadores rolam perícias e atributos a partir da ficha
-- há rolagem livre para expressões genéricas
-- o motor de dados de Ordem Paranormal fica na API
-- a API recalcula a rolagem da ficha para evitar cheat
-- resultados são compartilhados com todos os participantes
-- o mestre pode informar DT opcional para testes
-
-### 8. Quadro de investigações
-
-- o quadro usa nós editáveis de texto
-- nós podem ser arrastados, redimensionados e conectados
-- há suporte a riscado para descartar pistas
-- há tags e cores para classificar conteúdo
-- alterações sincronizam em tempo real
-- o mestre pode editar tudo
-- o jogador edita conforme permissão configurada
-
-### 9. Sessão e tempo real
-
-- cada campanha corresponde a uma room WebSocket
-- ao entrar, o cliente recebe snapshot do estado atual
-- há reconexão automática
-- presença de entrada e saída é broadcastada
-- o sistema deve suportar pelo menos 4 clientes simultâneos por campanha
-- **Fase 8 (pós-MVP):** mestre finaliza sessão e envia recap estruturado aos jogadores; recap narrativo por IA com feature flag (`SESSION_RECAP_AI_*`)
-
-### 10. Monetização
-
-- modelo SaaS com `free` e `premium`
-- o MVP lança com todos os usuários em `free`
-- o plano `free` exibe anúncios do Google AdSense
-- o plano `premium` remove apenas anúncios
-- o modo apresentação nunca exibe anúncios
-- o pagamento do Premium é pós-MVP
-
-### 11. Métricas e observabilidade
-
-- API expõe `/health` e `/health/ready`
-- API expõe `/metrics`
-- logs devem ser estruturados em JSON
-- o frontend envia eventos de produto e Web Vitals
-- o objetivo é acompanhar latência, estabilidade de WebSocket e uso de produto
-
-## Regras técnicas obrigatórias
-
-### Backend
-
-- usar NestJS
-- usar Drizzle com PostgreSQL
-- usar Redis para pub/sub de tempo real
-- usar storage S3 compatível
-- seguir TDD em toda feature de negócio
-- não introduzir endpoint REST sem Swagger
-- não introduzir regra autoritativa fora da API
-
-### Frontend
-
-- usar Next.js
-- usar Zustand para estado de UI
-- usar TanStack Query para dados remotos
-- usar PixiJS no mapa
-- usar React Flow no quadro
-- usar TipTap nos documentos
-- não importar código da API
-- manter tipos espelhados e alinhados ao contrato
-
-## Padrões de documentação e teste
-
-- todo módulo da API deve ter um `.md` ao lado do código
-- todo domínio relevante do frontend deve ter um `.md`
-- backend segue ciclo Red → Green → Refactor
-- testes esperados:
-  - API: Jest unit, integração e e2e
-  - Web: Vitest, RTL, MSW e Cypress
-- a documentação e os testes devem caminhar juntos com a feature
-
-## Convenções de implementação
-
-Ao implementar uma funcionalidade que cruza frontend e backend:
-
-1. começar pela API com teste
-2. implementar endpoint, validação e documentação
-3. espelhar contrato no frontend
-4. cobrir UI com teste
-5. atualizar documentação do módulo/domínio
-
-## Restrições de domínio
-
-LoreForge opera sob a [Licença da Comunidade de Ordem Paranormal v1.0](docs/licenca-ordem-paranormal/LICENCA-COMUNIDADE-v1.0.md) como plataforma VTT comercial. Guia: [conformidade-loreforge.md](docs/licenca-ordem-paranormal/conformidade-loreforge.md).
-
-- usar apenas terminologia geral do sistema permitida pela licença
-- não usar marca, logo ou identidade visual de Ordem Paranormal
-- não reproduzir textos nem imagens dos livros oficiais
-- não incluir conteúdo pré-populado com termos do cânone
-- não incluir material gerado por IA com monetização ativa (recap por IA: Fase 8, feature flag — ver conformidade § 3.5)
-- exibir selo da licença e disclaimer de não oficialidade
-- o MVP não inclui balanceamento de homebrew
-- o Premium não pode bloquear features de jogo no MVP
-- recap de sessão (Fase 8, pós-MVP): estruturado sempre; IA opcional via `SESSION_RECAP_AI_*`
-
-## Critérios de aceitação do MVP
-
-O MVP só é considerado pronto quando existir:
-
-- login Google funcional
-- campanha com convites
-- fichas de Ordem Paranormal
-- docs do mestre com permissões
-- mapa sincronizado com 4 clientes
-- modo apresentação limpo em nova aba
-- rolagem de dados com log compartilhado
-- quadro de investigações em tempo real
-- Swagger e documentação por módulo/domínio
-- testes automatizados passando
-- ads no `free` e ocultos em `present` e `premium`
-- métricas e analytics básicos operacionais
-- selo e disclaimer da Licença da Comunidade de Ordem Paranormal
-
-## Arquivos de referência
-
-- [README.md](README.md)
-- [monorepo.md](monorepo.md)
-- [plano-mvp.md](plano-mvp.md)
-- [docs/requisitos.md](docs/requisitos.md)
-- [docs/padroes.md](docs/padroes.md)
-- [docs/monetizacao.md](docs/monetizacao.md)
-- [docs/metricas.md](docs/metricas.md)
-- [docs/licenca-ordem-paranormal/conformidade-loreforge.md](docs/licenca-ordem-paranormal/conformidade-loreforge.md)
-- [apps/web/web.md](apps/web/web.md)
-- [apps/api/api.md](apps/api/api.md)
-- [apps/api/docs/ws-events.md](apps/api/docs/ws-events.md)
-.
+## Frontend
+
+- Usar Next.js, TypeScript, Tailwind, Zustand e TanStack Query.
+- Usar PixiJS no mapa, React Flow no quadro e TipTap nos documentos.
+- Não calcular regra autoritativa de jogo no cliente.
+- Espelhar contratos REST/WS apenas para tipagem, validação de UX e integração.
+- Ads e analytics são client-side e nunca aparecem no modo apresentação.
+
+## Testes
+
+- API: Jest unit, integração e e2e, priorizando domínio, use cases, repositories e controllers/gateway.
+- Web: Vitest, React Testing Library, MSW e Cypress nos fluxos críticos.
+- Mudança de contrato exige teste cobrindo o fluxo e atualização de Swagger ou [docs/contratos.md](docs/contratos.md).
+
+## Documentação
+
+Não criar `.md` ao lado de módulo, domínio, componente ou pasta por padrão. Isso polui o repositório e tende a duplicar o que já está em testes, Swagger e código.
+
+Atualize documentação somente quando a mudança alterar:
+
+- escopo, requisito ou roadmap: [docs/produto.md](docs/produto.md);
+- arquitetura, padrão técnico, setup ou deploy: [docs/arquitetura.md](docs/arquitetura.md);
+- contrato REST/WS público: [docs/contratos.md](docs/contratos.md);
+- métricas, ads, env ou operação: [docs/operacao.md](docs/operacao.md);
+- conformidade legal: [docs/licenca-ordem-paranormal.md](docs/licenca-ordem-paranormal.md).
+
+Comentários no código devem explicar decisões não óbvias, invariantes ou integrações frágeis. Não documentar mecanicamente todo método, classe ou componente.
+
+## Regras de domínio
+
+- Login via Google OAuth.
+- Campanhas têm papéis `gm`, `player` e `spectator`.
+- Plano `free` mostra anúncios; `premium` remove anúncios.
+- No MVP, Premium não bloqueia funcionalidades de jogo.
+- Modo apresentação nunca exibe anúncios.
+- Rolagem de ficha é recalculada pela API.
+- Sync de mapa deve suportar pelo menos 4 clientes simultâneos por campanha.
+
+## Conformidade Ordem Paranormal
+
+LoreForge opera sob a Licença da Comunidade de Ordem Paranormal v1.0 como plataforma VTT comercial.
+
+- Usar apenas terminologia geral permitida.
+- Não usar marca, logo, identidade visual, textos, imagens ou conteúdo de cânone.
+- Não incluir templates pré-populados com material oficial.
+- Não incluir material gerado por IA com monetização ativa, salvo mudança legal explícita.
+- Exibir selo da licença e disclaimer de não oficialidade.
