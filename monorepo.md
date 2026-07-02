@@ -12,8 +12,8 @@ Visão geral da organização do código. Dois apps deployáveis, **sem pacotes 
 | [LoreForge.md](LoreForge.md) | Requisitos funcionais e stack |
 | [plano-mvp.md](plano-mvp.md) | Plano de desenvolvimento, fases e critérios de aceite |
 | [apps/web/web.md](apps/web/web.md) | Frontend Next.js |
-| [apps/api/api.md](apps/api/api.md) | Backend NestJS |
-| [docs/padroes.md](docs/padroes.md) | Padrões de documentação (.md + Swagger) e testes (TDD) |
+| [apps/api/api.md](apps/api/api.md) | Backend NestJS (organizado por DDD) |
+| [docs/padroes.md](docs/padroes.md) | Padrões de documentação, testes e DDD |
 | [docs/requisitos.md](docs/requisitos.md) | Requisitos funcionais e não funcionais |
 | [docs/metricas.md](docs/metricas.md) | Métricas técnicas, produto, SaaS e observabilidade |
 | [docs/monetizacao.md](docs/monetizacao.md) | SaaS Free/Premium e setup Google AdSense |
@@ -29,7 +29,7 @@ Visão geral da organização do código. Dois apps deployáveis, **sem pacotes 
 LoreForge/
 ├── apps/
 │   ├── web/                 # @loreforge/web — Next.js
-│   └── api/                 # @loreforge/api — NestJS
+│   └── api/                 # @loreforge/api — NestJS (DDD by modules)
 ├── docker-compose.yml       # PostgreSQL, Redis, MinIO (dev)
 ├── README.md
 ├── LICENSE
@@ -42,7 +42,7 @@ LoreForge/
 └── monorepo.md
 ```
 
-Cada app contém **tudo** do seu lado: tipos, schemas, regras de domínio, testes e documentação (`.md` + Swagger na API).
+Cada app contém **tudo** do seu lado: tipos, schemas, regras de domínio, testes e documentação (`.md` + Swagger na API). A diferença importante: o backend agora está organizado por bounded contexts e por camadas (api/application/domain/infrastructure) para favorecer DDD.
 
 ---
 
@@ -52,7 +52,7 @@ Padrão completo: [docs/padroes.md](docs/padroes.md).
 
 | App | Documentação | Testes |
 |-----|--------------|--------|
-| **api** | Swagger (`@nestjs/swagger`) desde o dia 1 + `<modulo>.md` por módulo | **TDD** — Jest unit, integração, e2e |
+| **api** | Swagger (`@nestjs/swagger`) desde o dia 1 + `<modulo>.md` por bounded context (cada `.md` deve explicar a camada `domain` e `application`) | **TDD** — Jest unit (domain), unit application (use-cases), integração (infra), e2e |
 | **web** | `<dominio>.md` por área de UI | Vitest + RTL + Cypress + MSW |
 
 Nenhuma feature REST entra sem decorator Swagger. Nenhuma lógica de negócio na API entra sem teste escrito antes (TDD). Métricas: [docs/metricas.md](docs/metricas.md).
@@ -92,18 +92,18 @@ Inclui internamente:
 
 ### [apps/api](apps/api/api.md)
 
-REST, WebSocket, Drizzle/PostgreSQL, Redis, storage S3/R2.
+REST, WebSocket, Drizzle/PostgreSQL, Redis, storage S3/R2. Organizado por bounded contexts e camadas DDD.
 
 Inclui internamente:
 - DTOs, schemas Zod **autoritativos** (REST + WS)
-- Regras Ordem Paranormal: ficha, pool de d20, anti-cheat de rolagem
-- RBAC e persistência
+- Regras Ordem Paranormal: ficha, pool de d20, anti-cheat de rolagem — modeladas no Domain layer
+- RBAC e persistência, com ownership checks no Application/Domain
 
 ---
 
 ## Caminho para micro-serviços
 
-Hoje tudo vive em `apps/api`. Quando um domínio crescer o suficiente:
+A organização por módulos e camadas facilita a extração futura. Quando um domínio crescer o suficiente:
 
 ```mermaid
 flowchart LR
@@ -120,10 +120,10 @@ flowchart LR
 
 Passos de extração (sem refatoração massiva):
 
-1. Copiar módulo NestJS (ex.: `map/`) para novo app `apps/map-service`
-2. Manter os mesmos endpoints/eventos WS — contrato público inalterado
-3. `apps/api` vira orquestrador ou some; `apps/web` aponta URL nova via env
-4. Nenhum pacote interno para migrar — o módulo já era autocontido
+1. Copiar bounded context NestJS (ex.: `map/`) para novo app `apps/map-service`
+2. Garantir que o novo serviço implemente os mesmos contratos HTTP/WS ou que exista um adapter
+3. `apps/web` passa a apontar para URL nova via env
+4. Usar Integration Events/outbox para comunicar entre serviços quando necessário
 
 Domínios candidatos a separação futura: **mapa**, **tempo real/WS**, **dados/RPG**, **documentos/storage**.
 

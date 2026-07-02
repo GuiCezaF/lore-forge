@@ -2,7 +2,7 @@
 
 Plataforma web de mesa virtual para RPG — campanhas, fichas, mapa tabletop em tempo real, rolagem de dados e quadro de investigações em um só lugar.
 
-**Status:** documentação e planejamento (código ainda não iniciado).  
+**Status:** documentação e planejamento. Backend organizado segundo Domain‑Driven Design (DDD) para facilitar evolução e testes.
 **Sistema inicial:** Ordem Paranormal RPG — compatível com a [Licença da Comunidade de Ordem Paranormal v1.0](docs/licenca-ordem-paranormal/LICENCA-COMUNIDADE-v1.0.md) ([oficial](https://ordemparanormal.com.br/licenca)).
 
 ---
@@ -19,7 +19,7 @@ LoreForge permite que mestres e jogadores conduzam sessões online com:
 - Rolagem de dados em tempo real com regras Ordem Paranormal (pool de d20)
 - Quadro de investigações conectável (React Flow)
 
-Diferenciais em relação a ferramentas só de ficha: **mapa ao vivo**, **modo apresentação** e **quadro integrado** sem abrir várias janelas.
+Diferenciais: arquitetura do backend orientada a domínio (DDD), teste desde o Domain até a API e capacidade de extração de módulos em microserviços no futuro.
 
 ---
 
@@ -39,10 +39,10 @@ No lançamento do MVP, todos os usuários estarão no plano **Free**. Pagamento 
 | Camada | Tecnologias |
 |--------|-------------|
 | Frontend | Next.js, TypeScript, Tailwind, Zustand, TanStack Query, PixiJS, React Flow, TipTap |
-| Backend | NestJS, Drizzle, PostgreSQL, Redis, WebSocket |
+| Backend | NestJS (DDD), Drizzle, PostgreSQL, Redis, WebSocket |
 | Storage | Cloudflare R2 (prod), MinIO (dev) |
 | Infra | Docker, Coolify, Cloudflare |
-| Testes | Jest (API, TDD), Vitest + RTL + Cypress (web) |
+| Testes | Jest (API, TDD — domain + application), Vitest + RTL + Cypress (web) |
 | Docs API | Swagger (`/api/docs`) desde o dia 1 |
 | Métricas | Prometheus, Grafana, Plausible/PostHog |
 
@@ -54,14 +54,14 @@ No lançamento do MVP, todos os usuários estarão no plano **Free**. Pagamento 
 LoreForge/
 ├── apps/
 │   ├── web/          # @loreforge/web — Next.js
-│   └── api/          # @loreforge/api — NestJS
+│   └── api/          # @loreforge/api — NestJS (DDD by modules)
 ├── docs/             # Requisitos, padrões, métricas, diagramas
 ├── docker-compose.yml
 ├── README.md
 └── LICENSE
 ```
 
-Dois apps **autocontidos** — sem pacotes compartilhados. Comunicação apenas via REST (Swagger) e WebSocket. Visão completa: [monorepo.md](monorepo.md).
+Dois apps **autocontidos** — sem pacotes compartilhados. Comunicação apenas via REST (Swagger) e WebSocket. Backend organizado por bounded contexts em `apps/api/src/modules/<context>` (camadas: api/application/domain/infrastructure). Visão completa: [monorepo.md](monorepo.md).
 
 ---
 
@@ -72,14 +72,14 @@ Dois apps **autocontidos** — sem pacotes compartilhados. Comunicação apenas 
 | [LoreForge.md](LoreForge.md) | Requisitos e stack (origem) |
 | [plano-mvp.md](plano-mvp.md) | Fases de desenvolvimento e critérios de aceite |
 | [docs/requisitos.md](docs/requisitos.md) | RF/RNF consolidados |
-| [docs/padroes.md](docs/padroes.md) | TDD, Swagger, `.md` por módulo, Cypress |
+| [docs/padroes.md](docs/padroes.md) | Padrões de DDD, TDD, Swagger e `.md` por módulo |
 | [docs/metricas.md](docs/metricas.md) | Observabilidade e analytics |
 | [docs/monetizacao.md](docs/monetizacao.md) | AdSense e planos |
 | [docs/assets/](docs/assets/) | Selos da licença OP (PNG) |
 | [docs/licenca-ordem-paranormal/](docs/licenca-ordem-paranormal/) | Licença OP e conformidade do LoreForge |
 | [docs/loreforge-arquitetura.drawio](docs/loreforge-arquitetura.drawio) | Diagramas (draw.io) |
 | [apps/web/web.md](apps/web/web.md) | Escopo do frontend |
-| [apps/api/api.md](apps/api/api.md) | Escopo do backend |
+| [apps/api/api.md](apps/api/api.md) | Escopo do backend (DDD) |
 
 ---
 
@@ -136,7 +136,7 @@ pnpm docker:up        # sobe PostgreSQL, Redis, MinIO
 
 | App | Unit / integração | E2E |
 |-----|-------------------|-----|
-| **api** | Jest (TDD obrigatório) | Supertest |
+| **api** | Jest (TDD obrigatório — domain + application) | Supertest |
 | **web** | Vitest + RTL + MSW | Cypress |
 
 Padrões: [docs/padroes.md](docs/padroes.md).

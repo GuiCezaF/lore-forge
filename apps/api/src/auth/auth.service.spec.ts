@@ -6,10 +6,12 @@ import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from './auth.constants';
+import { InMemoryUserRepository } from '../modules/users/infrastructure/repositories/in-memory-user.repository';
 
 describe('AuthService', () => {
   let service: AuthService;
   let usersService: UsersService;
+  let repo: InMemoryUserRepository;
 
   const googleProfile = {
     sub: 'google-subject-auth',
@@ -22,53 +24,54 @@ describe('AuthService', () => {
     process.env.GOOGLE_CLIENT_ID = 'google-client-id';
     process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret';
 
-    usersService = new UsersService();
+    repo = new InMemoryUserRepository();
+    usersService = new UsersService(repo as any);
     service = new AuthService(usersService);
   });
 
   describe('createSession', () => {
-    it('returns access and refresh tokens for a user', () => {
-      const user = usersService.upsertGoogleUser(googleProfile);
-      const session = service.createSession(user);
+    it('returns access and refresh tokens for a user', async () => {
+      const user = await usersService.upsertGoogleUser(googleProfile as any);
+      const session = await service.createSession(user);
 
       expect(session.user.id).toBe(user.id);
       expect(session.accessToken).toEqual(expect.any(String));
       expect(session.refreshToken).toEqual(expect.any(String));
     });
 
-    it('persists refresh token hash in user record', () => {
-      const user = usersService.upsertGoogleUser(googleProfile);
-      service.createSession(user);
+    it('persists refresh token hash in user record', async () => {
+      const user = await usersService.upsertGoogleUser(googleProfile as any);
+      await service.createSession(user);
 
-      const stored = usersService.findAuthUserById(user.id);
+      const stored = await usersService.findAuthUserById(user.id);
       expect(stored.refreshTokenHash).toEqual(expect.any(String));
       expect(stored.refreshTokenExpiresAt).toEqual(expect.any(String));
     });
   });
 
   describe('verifyAccessToken', () => {
-    it('returns user for a valid access token', () => {
-      const user = usersService.upsertGoogleUser(googleProfile);
-      const session = service.createSession(user);
+    it('returns user for a valid access token', async () => {
+      const user = await usersService.upsertGoogleUser(googleProfile as any);
+      const session = await service.createSession(user);
 
-      const verified = service.verifyAccessToken(session.accessToken);
+      const verified = await service.verifyAccessToken(session.accessToken);
 
       expect(verified.id).toBe(user.id);
       expect(verified.email).toBe(user.email);
     });
 
-    it('rejects token after token version changes', () => {
-      const user = usersService.upsertGoogleUser(googleProfile);
-      const session = service.createSession(user);
-      usersService.clearRefreshToken(user.id);
+    it('rejects token after token version changes', async () => {
+      const user = await usersService.upsertGoogleUser(googleProfile as any);
+      const session = await service.createSession(user);
+      await usersService.clearRefreshToken(user.id);
 
-      expect(() => service.verifyAccessToken(session.accessToken)).toThrow(
+      await expect(service.verifyAccessToken(session.accessToken)).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
-    it('rejects malformed token', () => {
-      expect(() => service.verifyAccessToken('invalid-token')).toThrow(
+    it('rejects malformed token', async () => {
+      await expect(service.verifyAccessToken('invalid-token')).rejects.toThrow(
         UnauthorizedException,
       );
     });
@@ -76,15 +79,15 @@ describe('AuthService', () => {
 
   describe('refreshFromCookies', () => {
     it('rotates session from refresh cookie', async () => {
-      const user = usersService.upsertGoogleUser(googleProfile);
-      const session = service.createSession(user);
+      const user = await usersService.upsertGoogleUser(googleProfile as any);
+      const session = await service.createSession(user);
       const cookieHeader = `${REFRESH_TOKEN_COOKIE}=${session.refreshToken}`;
 
       const refreshed = await service.refreshFromCookies(cookieHeader);
 
       expect(refreshed.user.id).toBe(user.id);
       expect(refreshed.refreshToken).not.toBe(session.refreshToken);
-      expect(service.verifyAccessToken(refreshed.accessToken).id).toBe(user.id);
+      expect((await service.verifyAccessToken(refreshed.accessToken)).id).toBe(user.id);
     });
 
     it('rejects missing refresh cookie', async () => {
@@ -96,13 +99,13 @@ describe('AuthService', () => {
 
   describe('logoutFromCookies', () => {
     it('clears refresh token for valid session', async () => {
-      const user = usersService.upsertGoogleUser(googleProfile);
-      const session = service.createSession(user);
+      const user = await usersService.upsertGoogleUser(googleProfile as any);
+      const session = await service.createSession(user);
       const cookieHeader = `${REFRESH_TOKEN_COOKIE}=${session.refreshToken}`;
 
       await service.logoutFromCookies(cookieHeader);
 
-      const stored = usersService.findAuthUserById(user.id);
+      const stored = await usersService.findAuthUserById(user.id);
       expect(stored.refreshTokenHash).toBeNull();
       expect(stored.tokenVersion).toBe(user.tokenVersion + 1);
     });
@@ -115,9 +118,9 @@ describe('AuthService', () => {
   });
 
   describe('attachAuthCookies / clearAuthCookies', () => {
-    it('sets and clears auth cookies on response', () => {
-      const user = usersService.upsertGoogleUser(googleProfile);
-      const session = service.createSession(user);
+    it('sets and clears auth cookies on response', async () => {
+      const user = await usersService.upsertGoogleUser(googleProfile as any);
+      const session = await service.createSession(user);
       const cookies = new Map<string, string>();
       const cleared = new Set<string>();
 
@@ -151,7 +154,7 @@ describe('AuthService', () => {
   });
 
   describe('verifyAccessToken with manually built token', () => {
-    it('rejects token for unknown user', () => {
+    it('rejects token for unknown user', async () => {
       const token = buildAccessToken(
         {
           sub: 'missing-user',
@@ -165,7 +168,7 @@ describe('AuthService', () => {
         3600,
       );
 
-      expect(() => service.verifyAccessToken(token)).toThrow(NotFoundException);
+      await expect(service.verifyAccessToken(token)).rejects.toThrow(NotFoundException);
     });
   });
 });

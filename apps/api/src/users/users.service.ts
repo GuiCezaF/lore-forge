@@ -2,51 +2,48 @@ import {
   Injectable,
   UnauthorizedException,
   NotFoundException,
+  Inject,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { AuthUser, GoogleUserInfo } from '../auth/auth.types';
 import { hashToken, safeEqualHash } from '../auth/jwt';
 import { UserRecord, PublicUser } from './users.types';
+import type { IUserRepository } from '../modules/users/domain/repositories/user.repository.interface';
 
 @Injectable()
 export class UsersService {
-  private readonly usersById = new Map<string, UserRecord>();
-  private readonly usersByProviderSubject = new Map<string, string>();
+  constructor(
+    @Inject('IUserRepository')
+    private readonly userRepository: IUserRepository,
+  ) {}
 
-  findPublicById(id: string): PublicUser {
-    const user = this.usersById.get(id);
+  async findPublicById(id: string): Promise<PublicUser> {
+    const user = await this.userRepository.findById(id);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
     return this.toPublicUser(user);
   }
 
-  findAuthUserById(id: string): AuthUser {
-    const user = this.usersById.get(id);
+  async findAuthUserById(id: string): Promise<AuthUser> {
+    const user = await this.userRepository.findById(id);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
     return this.toAuthUser(user);
   }
 
-  findAuthUserByProviderSubject(providerSubject: string): AuthUser | undefined {
-    const userId = this.usersByProviderSubject.get(providerSubject);
-    if (!userId) {
-      return undefined;
-    }
-
-    const user = this.usersById.get(userId);
+  async findAuthUserByProviderSubject(providerSubject: string): Promise<AuthUser | undefined> {
+    const user = await this.userRepository.findByProviderSubject(providerSubject);
     return user ? this.toAuthUser(user) : undefined;
   }
 
-  upsertGoogleUser(profile: GoogleUserInfo): AuthUser {
+  async upsertGoogleUser(profile: GoogleUserInfo): Promise<AuthUser> {
     const providerSubject = `google:${profile.sub}`;
-    const existingId = this.usersByProviderSubject.get(providerSubject);
     const now = new Date().toISOString();
+    const existing = await this.userRepository.findByProviderSubject(providerSubject);
 
-    if (!existingId) {
+    if (!existing) {
       const record: UserRecord = {
         id: randomUUID(),
         provider: 'google',
@@ -61,18 +58,12 @@ export class UsersService {
         lastLoginAt: now,
         tokenVersion: 0,
       };
-      this.usersById.set(record.id, record);
-      this.usersByProviderSubject.set(providerSubject, record.id);
+      await this.userRepository.save(record);
       return this.toAuthUser(record);
     }
 
-    const current = this.usersById.get(existingId);
-    if (!current) {
-      throw new NotFoundException('User not found');
-    }
-
     const merged: UserRecord = {
-      ...current,
+      ...existing,
       email: profile.email,
       name: profile.name,
       picture: profile.picture,
@@ -80,32 +71,31 @@ export class UsersService {
       lastLoginAt: now,
     };
 
-    this.usersById.set(existingId, merged);
+    await this.userRepository.save(merged);
     return this.toAuthUser(merged);
   }
 
-  updateLoginMetadata(userId: string): AuthUser {
-    const user = this.usersById.get(userId);
+  async updateLoginMetadata(userId: string): Promise<AuthUser> {
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
     const updated: UserRecord = {
       ...user,
       lastLoginAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    this.usersById.set(userId, updated);
+    await this.userRepository.save(updated);
     return this.toAuthUser(updated);
   }
 
-  updateRefreshToken(
+  async updateRefreshToken(
     userId: string,
     refreshToken: string,
     expiresAt: Date,
     tokenVersion: number,
-  ): AuthUser {
-    const user = this.usersById.get(userId);
+  ): Promise<AuthUser> {
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -121,12 +111,12 @@ export class UsersService {
       updatedAt: new Date().toISOString(),
     };
 
-    this.usersById.set(userId, updated);
+    await this.userRepository.save(updated);
     return this.toAuthUser(updated);
   }
 
-  clearRefreshToken(userId: string): AuthUser {
-    const user = this.usersById.get(userId);
+  async clearRefreshToken(userId: string): Promise<AuthUser> {
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
@@ -139,16 +129,16 @@ export class UsersService {
       updatedAt: new Date().toISOString(),
     };
 
-    this.usersById.set(userId, updated);
+    await this.userRepository.save(updated);
     return this.toAuthUser(updated);
   }
 
-  validateRefreshToken(
+  async validateRefreshToken(
     userId: string,
     refreshToken: string,
     tokenVersion: number,
-  ): AuthUser {
-    const user = this.usersById.get(userId);
+  ): Promise<AuthUser> {
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
@@ -178,7 +168,7 @@ export class UsersService {
     return this.toAuthUser(user);
   }
 
-  getProfile(userId: string): PublicUser {
+  async getProfile(userId: string): Promise<PublicUser> {
     return this.findPublicById(userId);
   }
 

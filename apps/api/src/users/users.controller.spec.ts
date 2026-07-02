@@ -38,7 +38,7 @@ describe('UsersController', () => {
   });
 
   describe('getMe', () => {
-    it('returns public profile for authenticated user', () => {
+    it('returns public profile for authenticated user', async () => {
       const profile = {
         id: authUser.id,
         email: authUser.email,
@@ -51,9 +51,10 @@ describe('UsersController', () => {
         updatedAt: authUser.updatedAt,
         lastLoginAt: authUser.lastLoginAt,
       };
-      usersService.getProfile.mockReturnValue(profile);
+      usersService.getProfile.mockResolvedValue(profile as any);
 
-      expect(controller.getMe(authUser)).toEqual(profile);
+      const result = await controller.getMe(authUser);
+      expect(result).toEqual(profile);
       expect(usersService.getProfile).toHaveBeenCalledWith(authUser.id);
     });
   });

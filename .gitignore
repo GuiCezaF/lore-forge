@@ -147,3 +147,4 @@ vite.config.ts.timestamp-*
 .cursor/
 .agents/
 .codex/
+.continue/

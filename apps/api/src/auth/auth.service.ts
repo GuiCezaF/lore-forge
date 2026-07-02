@@ -137,7 +137,7 @@ export class AuthService {
       throw new BadRequestException((error as Error).message);
     }
 
-    const user = this.usersService.upsertGoogleUser(profilePayload.profile);
+    const user = await this.usersService.upsertGoogleUser(profilePayload.profile);
     return this.createSession(user);
   }
 
@@ -148,15 +148,15 @@ export class AuthService {
       name: 'Arthur Cervero',
       picture: 'https://avatar.vercel.sh/arthur',
     };
-    const user = this.usersService.upsertGoogleUser(mockProfile);
+    const user = await this.usersService.upsertGoogleUser(mockProfile);
     return this.createSession(user);
   }
 
-  createSession(user: AuthUser): {
+  async createSession(user: AuthUser): Promise<{
     user: AuthUser;
     accessToken: string;
     refreshToken: string;
-  } {
+  }> {
     const tokenVersion = user.tokenVersion;
     const refreshTokenId = createRefreshTokenId();
     const refreshToken = buildRefreshToken(
@@ -164,7 +164,7 @@ export class AuthService {
       this.getJwtSecret(),
       REFRESH_TOKEN_LIFETIME_SECONDS,
     );
-    const updatedUser = this.usersService.updateRefreshToken(
+    const updatedUser = await this.usersService.updateRefreshToken(
       user.id,
       refreshToken,
       new Date(Date.now() + REFRESH_TOKEN_LIFETIME_SECONDS * 1000),
@@ -200,7 +200,7 @@ export class AuthService {
       throw new UnauthorizedException((error as Error).message);
     }
 
-    const user = this.usersService.validateRefreshToken(
+    const user = await this.usersService.validateRefreshToken(
       claims.sub,
       refreshToken,
       claims.tokenVersion,
@@ -219,13 +219,13 @@ export class AuthService {
         refreshToken,
         this.getJwtSecret(),
       );
-      this.usersService.clearRefreshToken(claims.sub);
+      await this.usersService.clearRefreshToken(claims.sub);
     } catch {
       return;
     }
   }
 
-  verifyAccessToken(token: string): AuthUser {
+  async verifyAccessToken(token: string): Promise<AuthUser> {
     let claims: AccessTokenClaims;
     try {
       claims = verifyJwt<AccessTokenClaims>(token, this.getJwtSecret());
@@ -233,7 +233,7 @@ export class AuthService {
       throw new UnauthorizedException((error as Error).message);
     }
 
-    const user = this.usersService.findAuthUserById(claims.sub);
+    const user = await this.usersService.findAuthUserById(claims.sub);
 
     if (user.tokenVersion !== claims.tokenVersion) {
       throw new UnauthorizedException('Token version mismatch');

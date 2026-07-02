@@ -56,6 +56,65 @@ Regra central:
 - storage
 - métricas e healthchecks
 
+## Arquitetura proposta — Domain‑Driven Design (DDD)
+
+Este projeto adota DDD como padrão para organizar o backend (`apps/api`) por bounded contexts e camadas bem definidas. A intenção é aumentar manutenibilidade, permitir testes de domínio isolados e facilitar extração futura para microserviços.
+
+Princípios básicos:
+
+- Modelar Bounded Contexts (ex.: users, campaigns, map, documents, dice)
+- Separar camadas: Presentation (API), Application (Use Cases), Domain (Entities, VOs, Domain Services, Repositories interfaces), Infrastructure (ORM, adapters)
+- Manter o domínio livre de dependências de infraestrutura (no máximo interfaces/ports)
+- Repositórios são interfaces no domínio; implementações ficam em infra
+- UseCases (Application Services) orquestram transações, validam políticas de aplicação e coordenam repositórios/domain services
+- Publicar Domain Events dentro do domínio e usar Outbox/Integration Events para integração entre contexts
+
+Estrutura por bounded context (exemplo `users`):
+
+```
+apps/api/src/modules/users/
+  api/
+    controllers/
+    dtos/
+    pipes/
+  application/
+    use-cases/
+    dto/
+    mappers/
+  domain/
+    entities/
+    value-objects/
+    repositories/   # interfaces (ports)
+    services/       # domain services
+    events/
+    errors/
+  infrastructure/
+    orm/            # persistence models / mappings
+    repositories/   # implementations (adapters)
+    services/       # external adapters (email, storage)
+```
+
+Diretrizes práticas:
+
+- Controllers: traduzem HTTP → Application DTOs e chamam UseCases; sem lógica de negócio
+- UseCases: orquestram fluxo, transações e publicação de events; aplicam checagens de aplicação
+- Domain: invariantes, métodos do agregado, VOs e Domain Events
+- Infra: acesso a banco, filas, externos; mapear entre persistence model e domain model
+- Testes: Domain (unit), Application (unit com mocks), Infrastructure (integration)
+
+Segurança e validação:
+
+- Validar todos os inputs com DTOs + class-validator / Zod
+- Verificar ownership e permissões tanto no Application (policies) quanto nas invariantes do Domain
+- Manter DTOs de saída explícitos para evitar exposição de hashes/segredos
+
+Migração incremental:
+
+1. Preparar common module e ValidationPipe global
+2. Fazer piloto com 1 contexto (sugestão: `users`)
+3. Migrar outros contexts gradualmente, mantendo compatibilidade de API
+4. Introduzir Outbox e CQRS onde necessário
+
 ## Contratos de integração
 
 ### REST
@@ -278,3 +337,4 @@ O MVP só é considerado pronto quando existir:
 - [apps/web/web.md](apps/web/web.md)
 - [apps/api/api.md](apps/api/api.md)
 - [apps/api/docs/ws-events.md](apps/api/docs/ws-events.md)
+.
