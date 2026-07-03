@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "title": "LoreForge",
+    "description": "Frontend do LoreForge para campanhas, fichas e mapa em tempo real."
+  },
+  "locale": {
+    "label": "Idioma",
+    "pt-BR": "Português",
+    "en": "English"
+  },
+  "login": {
+    "badge": "Portal de Investigação Paranormal",
+    "title": "LoreForge",
+    "tagline": "A verdade está além do véu. Forje sua investigação, rastreie pistas e comande o paranormal.",
+    "signInGoogle": "Entrar com Google",
+    "devBypass": "Login Dev (Ignorar Google Auth)",
+    "disclaimer": "LoreForge é uma plataforma VTT não oficial."
+  },
+  "layout": {
+    "home": "Início",
+    "master": "Mestre",
+    "player": "Jogador",
+    "investigator": "Investigador",
+    "logout": "Sair",
+    "loading": "Conectando ao Véu..."
+  }
+}

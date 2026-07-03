@@ -1,21 +1,41 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { LandingHero } from "./landing-hero";
+import { renderWithIntl } from "../../test/render-with-intl";
+import ptBRMessages from "../../messages/pt-BR.json";
+
+vi.mock("./locale-switcher", () => ({
+  LocaleSwitcher: () => null,
+}));
 
 describe("LandingHero", () => {
-  it("renders the product message and call to action", () => {
-    render(<LandingHero />);
+  it("renders the product message and call to action in pt-BR", () => {
+    const authUrl = "http://localhost:3000/auth/google";
+    const bypassUrl = "http://localhost:3000/auth/bypass";
+
+    renderWithIntl(
+      <LandingHero authUrl={authUrl} bypassUrl={bypassUrl} isDev={true} />
+    );
 
     expect(
       screen.getByRole("heading", {
-        name: /mesa virtual com mapa, fichas e documentos em um só lugar/i,
-      }),
+        name: /Lore\s*Forge/i,
+      })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /explorar base/i }),
+      screen.getByText(ptBRMessages.login.tagline)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/vitest pronto para rodar/i),
+      screen.getByRole("link", { name: ptBRMessages.login.signInGoogle })
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: ptBRMessages.login.signInGoogle })
+    ).toHaveAttribute("href", authUrl);
+    expect(
+      screen.getByRole("link", { name: ptBRMessages.login.devBypass })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: ptBRMessages.login.devBypass })
+    ).toHaveAttribute("href", bypassUrl);
   });
 });

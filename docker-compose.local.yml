@@ -1,0 +1,154 @@
+# Desenvolvimento local: infra (PostgreSQL, Redis, MinIO) + apps com hot-reload.
+#
+# Setup:
+#   cp apps/api/.env.example apps/api/.env
+#   cp apps/web/.env.example apps/web/.env
+#   docker compose -f docker-compose.local.yml --profile app up --build
+#
+# Somente infra (apps via pnpm dev no host):
+#   docker compose -f docker-compose.local.yml up -d
+#
+# Hostnames de rede (postgres, redis, minio) são sobrescritos nos serviços api/web.
+# O profile "app" adiciona API e frontend; sem profile sobe apenas a infra local.
+
+name: loreforge-local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: loreforge
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d loreforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - loreforge
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save "" --appendonly no
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - loreforge
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - loreforge
+
+  minio-init:
+    image: minio/mc:latest
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minioadmin minioadmin; do
+        echo 'Aguardando MinIO...';
+        sleep 2;
+      done &&
+      mc mb --ignore-existing local/loreforge
+      "
+    networks:
+      - loreforge
+
+  api:
+    profiles: ["app"]
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: development
+    restart: unless-stopped
+    env_file:
+      - ./apps/api/.env
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      CHOKIDAR_USEPOLLING: "true"
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/loreforge
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: loreforge
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      API_BASE_URL: http://localhost:3000
+      FRONTEND_BASE_URL: http://localhost:3001
+      POST_LOGIN_REDIRECT_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/api:/app
+      - api_node_modules:/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    networks:
+      - loreforge
+
+  web:
+    profiles: ["app"]
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: development
+    restart: unless-stopped
+    env_file:
+      - ./apps/web/.env
+    environment:
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./apps/web:/app
+      - web_node_modules:/app/node_modules
+      - web_next_cache:/app/.next
+    depends_on:
+      - api
+    networks:
+      - loreforge
+
+networks:
+  loreforge:
+    name: loreforge-local
+
+volumes:
+  postgres_data:
+  minio_data:
+  api_node_modules:
+  web_node_modules:
+  web_next_cache:

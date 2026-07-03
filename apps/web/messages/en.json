@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "title": "LoreForge",
+    "description": "LoreForge frontend for campaigns, character sheets, and real-time maps."
+  },
+  "locale": {
+    "label": "Language",
+    "pt-BR": "Português",
+    "en": "English"
+  },
+  "login": {
+    "badge": "Paranormal Investigation Portal",
+    "title": "LoreForge",
+    "tagline": "The truth lies beyond the veil. Forge your investigation, track clues, and command the paranormal.",
+    "signInGoogle": "Sign in with Google",
+    "devBypass": "Dev Login (Bypass Google Auth)",
+    "disclaimer": "LoreForge is an unofficial VTT platform."
+  },
+  "layout": {
+    "home": "Home",
+    "master": "Master",
+    "player": "Player",
+    "investigator": "Investigator",
+    "logout": "Logout",
+    "loading": "Connecting to the Veil..."
+  }
+}

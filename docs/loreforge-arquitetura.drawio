@@ -109,7 +109,7 @@
         <mxCell id="e_api_google" value="OAuth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="api_auth" target="google">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="note1" value="Sem packages compartilhados&#xa;Contrato: Swagger (REST) + ws-events.md (WS)" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#ffffcc;strokeColor=#36393d;align=left;spacingLeft=8;" vertex="1" parent="1">
+        <mxCell id="note1" value="Sem packages compartilhados&#xa;Contrato: Swagger (REST) + docs/contratos.md (WS)" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#ffffcc;strokeColor=#36393d;align=left;spacingLeft=8;" vertex="1" parent="1">
           <mxGeometry x="120" y="660" width="280" height="60" as="geometry"/>
         </mxCell>
       </root>
@@ -252,10 +252,10 @@
         <mxCell id="dev_title" value="Desenvolvimento (local)" style="text;html=1;fontSize=16;fontStyle=1;strokeColor=none;fillColor=none;align=left;" vertex="1" parent="d1">
           <mxGeometry x="100" y="110" width="300" height="30" as="geometry"/>
         </mxCell>
-        <mxCell id="dev_web" value="pnpm dev — apps/web :3000" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="d1">
+        <mxCell id="dev_web" value="pnpm dev — apps/web :3001" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="d1">
           <mxGeometry x="120" y="160" width="200" height="40" as="geometry"/>
         </mxCell>
-        <mxCell id="dev_api" value="pnpm dev — apps/api :3001&#xa;/api/docs (Swagger)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="d1">
+        <mxCell id="dev_api" value="pnpm dev — apps/api :3000&#xa;/api/docs (Swagger)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="d1">
           <mxGeometry x="360" y="160" width="200" height="50" as="geometry"/>
         </mxCell>
         <mxCell id="dev_docker" value="docker compose up&#xa;PostgreSQL · Redis · MinIO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;" vertex="1" parent="d1">

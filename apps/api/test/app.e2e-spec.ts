@@ -18,11 +18,11 @@ describe('AppController (e2e)', () => {
     await app.listen(0);
   });
 
-  it('/ (GET)', () => {
+  it('/api/health (GET)', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/api/health')
       .expect(200)
-      .expect({ message: 'Hello World!' });
+      .expect({ status: 'UP' });
   });
 
   it('/api/docs (GET)', () => {
