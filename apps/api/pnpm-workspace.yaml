@@ -1,3 +1,4 @@
 allowBuilds:
   unrs-resolver: true
   "@scarf/scarf": false
+  esbuild: false
