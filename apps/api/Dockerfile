@@ -31,12 +31,9 @@ RUN apk add --no-cache wget \
     && adduser --system --uid 1001 --ingroup nestjs nestjs
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-
 RUN pnpm install --prod --frozen-lockfile
 
 COPY --from=build --chown=nestjs:nestjs /app/dist ./dist
-COPY --from=build --chown=nestjs:nestjs /app/drizzle ./drizzle
-COPY --from=build --chown=nestjs:nestjs /app/drizzle.config.ts ./drizzle.config.ts
 
 RUN chown -R nestjs:nestjs /app
 
@@ -46,4 +43,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1
 
-CMD ["sh", "-c", "exec node dist/main.js"]
+CMD ["node", "dist/main.js"]
