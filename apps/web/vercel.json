@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "pnpm install --frozen-lockfile --dir apps/web",
-  "buildCommand": "pnpm --dir apps/web build",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile --filter lore-forge-web...",
+  "buildCommand": "pnpm build",
   "framework": "nextjs"
 }
