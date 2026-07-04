@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { LocaleSwitcher } from "../components/locale-switcher";
+import { getBrowserApiUrl } from "@/lib/api-url";
 
 type AuthUser = {
   id: string;
@@ -25,7 +26,7 @@ export default function ProtectedLayout({
   const t = useTranslations("layout");
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+  const apiUrl = getBrowserApiUrl();
 
   useEffect(() => {
     async function fetchUser() {
@@ -40,7 +41,7 @@ export default function ProtectedLayout({
 
         if (!response.ok) {
           setUser(null);
-          router.push("/");
+          router.push("/?auth=session");
           return;
         }
 
@@ -48,7 +49,7 @@ export default function ProtectedLayout({
         setUser(data);
       } catch {
         setUser(null);
-        router.push("/");
+        router.push("/?auth=session");
       } finally {
         setLoading(false);
       }

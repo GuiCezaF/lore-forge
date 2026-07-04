@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { CrudPanel } from "@/app/components/crud-panel";
 import type { Character } from "@/app/types/entities";
+import { getBrowserApiUrl } from "@/lib/api-url";
 
 type CampaignOption = {
   id: string;
@@ -13,7 +14,7 @@ type CampaignOption = {
 };
 
 export default function CharactersPage() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+  const apiUrl = getBrowserApiUrl();
   const searchParams = useSearchParams();
   const [campaignOptions, setCampaignOptions] = useState<CampaignOption[]>([]);
   const kind = searchParams.get("kind");

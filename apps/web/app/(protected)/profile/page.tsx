@@ -14,6 +14,7 @@ import {
   primaryButtonClassName,
   surfaceClassName,
 } from "@/app/components/app-ui";
+import { getBrowserApiUrl } from "@/lib/api-url";
 
 type Profile = {
   id: string;
@@ -31,7 +32,7 @@ type Profile = {
 };
 
 export default function ProfilePage() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+  const apiUrl = getBrowserApiUrl();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [profile, setProfile] = useState<Profile | null>(null);

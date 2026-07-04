@@ -14,6 +14,7 @@ import {
   subtleButtonClassName,
   textareaClassName,
 } from "@/app/components/app-ui";
+import { getBrowserApiUrl } from "@/lib/api-url";
 
 type FieldType = "text" | "textarea" | "select" | "json";
 
@@ -63,7 +64,7 @@ export function CrudPanel<T extends { id: string }>({
   buildPayload,
   mapItemToForm,
 }: CrudPanelProps<T>) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+  const apiUrl = getBrowserApiUrl();
 
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);

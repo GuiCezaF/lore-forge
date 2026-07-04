@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { getBrowserApiUrl } from "@/lib/api-url";
 
 type Campaign = {
   id: string;
@@ -32,7 +33,7 @@ const emptyForm = {
 };
 
 export default function CampaignsPage() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+  const apiUrl = getBrowserApiUrl();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<CampaignDetail | null>(null);
   const [loading, setLoading] = useState(true);

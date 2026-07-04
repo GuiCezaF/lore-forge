@@ -11,10 +11,15 @@
   "login": {
     "badge": "Paranormal Investigation Portal",
     "title": "LoreForge",
-    "tagline": "The truth lies beyond the veil. Forge your investigation, track clues, and command the paranormal.",
+    "tagline": "The truth lies beyond the Membrane. Forge your investigation, track clues, and command the paranormal.",
     "signInGoogle": "Sign in with Google",
     "devBypass": "Dev Login (Bypass Google Auth)",
-    "disclaimer": "LoreForge is an unofficial VTT platform."
+    "disclaimer": "LoreForge is an unofficial VTT platform.",
+    "authError": {
+      "failed": "Could not complete sign-in. Please try again.",
+      "missing": "Invalid or expired sign-in session. Please try again.",
+      "session": "Your session expired or could not be validated. Please sign in again."
+    }
   },
   "layout": {
     "home": "Home",
@@ -22,6 +27,6 @@
     "player": "Player",
     "investigator": "Investigator",
     "logout": "Logout",
-    "loading": "Connecting to the Veil..."
+    "loading": "Connecting to the Membrane..."
   }
 }

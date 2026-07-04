@@ -19,6 +19,7 @@ import {
   OAUTH_STATE_COOKIE,
   OAUTH_STATE_LIFETIME_SECONDS,
 } from './auth.constants';
+import { buildSessionCookieOptions } from './auth-cookies';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -35,13 +36,11 @@ export class AuthController {
     const { authorizationUrl, oauthStateCookie } =
       this.authService.buildGoogleLogin();
 
-    res.cookie(OAUTH_STATE_COOKIE, oauthStateCookie, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: this.authService.isProduction(),
-      path: '/',
-      maxAge: OAUTH_STATE_LIFETIME_SECONDS * 1000,
-    });
+    res.cookie(
+      OAUTH_STATE_COOKIE,
+      oauthStateCookie,
+      buildSessionCookieOptions(OAUTH_STATE_LIFETIME_SECONDS),
+    );
 
     return res.redirect(authorizationUrl);
   }
@@ -63,6 +62,10 @@ export class AuthController {
       state,
       stateCookie: request.headers.cookie,
     });
+
+    if (this.authService.shouldUseAuthHandoff()) {
+      return res.redirect(this.authService.buildHandoffRedirectUrl(session));
+    }
 
     this.authService.attachAuthCookies(res, session);
     return res.redirect(this.authService.getPostLoginRedirectUrl());
@@ -95,8 +98,23 @@ export class AuthController {
       );
     }
     const session = await this.authService.bypassLogin();
+    if (this.authService.shouldUseAuthHandoff()) {
+      return res.redirect(this.authService.buildHandoffRedirectUrl(session));
+    }
     this.authService.attachAuthCookies(res, session);
     return res.redirect(this.authService.getPostLoginRedirectUrl());
+  }
+
+  @Get('handoff/redeem')
+  @ApiOperation({
+    summary: 'Troca um token de handoff OAuth por tokens de sessão',
+  })
+  async redeemHandoff(@Query('token') token: string | undefined) {
+    if (!token) {
+      throw new UnauthorizedException('Missing handoff token');
+    }
+
+    return this.authService.redeemHandoffToken(token);
   }
 
   @Get('me')

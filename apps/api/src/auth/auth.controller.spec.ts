@@ -15,6 +15,8 @@ describe('AuthController', () => {
       | 'handleGoogleCallback'
       | 'attachAuthCookies'
       | 'getPostLoginRedirectUrl'
+      | 'shouldUseAuthHandoff'
+      | 'buildHandoffRedirectUrl'
       | 'refreshFromCookies'
       | 'logoutFromCookies'
       | 'clearAuthCookies'
@@ -43,6 +45,8 @@ describe('AuthController', () => {
       handleGoogleCallback: jest.fn(),
       attachAuthCookies: jest.fn(),
       getPostLoginRedirectUrl: jest.fn(),
+      shouldUseAuthHandoff: jest.fn(),
+      buildHandoffRedirectUrl: jest.fn(),
       refreshFromCookies: jest.fn(),
       logoutFromCookies: jest.fn(),
       clearAuthCookies: jest.fn(),
@@ -90,6 +94,7 @@ describe('AuthController', () => {
         refreshToken: 'refresh-token',
       };
       authService.handleGoogleCallback.mockResolvedValue(session);
+      authService.shouldUseAuthHandoff.mockReturnValue(false);
       authService.getPostLoginRedirectUrl.mockReturnValue(
         'http://localhost:3001',
       );
@@ -110,6 +115,34 @@ describe('AuthController', () => {
       });
       expect(authService.attachAuthCookies).toHaveBeenCalledWith(res, session);
       expect(res.redirect).toHaveBeenCalledWith('http://localhost:3001');
+    });
+
+    it('redirects through auth handoff when frontend and API are split', async () => {
+      const session = {
+        user: authUser,
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      };
+      authService.handleGoogleCallback.mockResolvedValue(session);
+      authService.shouldUseAuthHandoff.mockReturnValue(true);
+      authService.buildHandoffRedirectUrl.mockReturnValue(
+        'http://localhost:3001/auth/callback?handoff=signed-token',
+      );
+
+      const res = {
+        redirect: jest.fn(),
+      } as unknown as Response;
+      const req = {
+        headers: { cookie: `${OAUTH_STATE_COOKIE}=state-value` },
+      } as Request;
+
+      await controller.googleCallback('auth-code', 'state-id', req, res);
+
+      expect(authService.buildHandoffRedirectUrl).toHaveBeenCalledWith(session);
+      expect(authService.attachAuthCookies).not.toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3001/auth/callback?handoff=signed-token',
+      );
     });
 
     it('rejects callback without code or state', async () => {

@@ -32,6 +32,8 @@ import { UsersService } from '../users/users.service';
 import type { IAuthSessionRepository } from './auth-session.repository.interface';
 import type { AuthSessionRecord } from './auth-session.types';
 import { InMemoryAuthSessionRepository } from './infrastructure/in-memory-auth-session.repository';
+import { buildHandoffToken, verifyHandoffToken } from './auth-handoff';
+import { buildSessionCookieOptions, hasSplitOrigins } from './auth-cookies';
 
 function readCookie(
   cookieHeader: string | undefined,
@@ -46,18 +48,6 @@ function readCookie(
     .map((entry) => entry.trim())
     .find((entry) => entry.startsWith(`${name}=`))
     ?.slice(name.length + 1);
-}
-
-function buildCookieOptions(maxAgeSeconds: number, secure: boolean) {
-  const domain = getEnvironment().COOKIE_DOMAIN;
-  return {
-    httpOnly: true,
-    sameSite: 'lax' as const,
-    secure,
-    path: '/',
-    domain: domain || undefined,
-    maxAge: maxAgeSeconds * 1000,
-  };
 }
 
 @Injectable()
@@ -121,6 +111,47 @@ export class AuthService {
 
   getPostLoginRedirectUrl(): string {
     return this.getEnvironment().POST_LOGIN_REDIRECT_URL;
+  }
+
+  getPrimaryFrontendBaseUrl(): string {
+    return this.getFrontendBaseUrl().split(',')[0]?.trim() ?? '';
+  }
+
+  shouldUseAuthHandoff(): boolean {
+    return hasSplitOrigins();
+  }
+
+  buildHandoffRedirectUrl(session: {
+    accessToken: string;
+    refreshToken: string;
+  }): string {
+    const handoffToken = buildHandoffToken(session, this.getJwtSecret());
+    const redirectUrl = new URL(
+      '/auth/callback',
+      this.getPrimaryFrontendBaseUrl(),
+    );
+    redirectUrl.searchParams.set('handoff', handoffToken);
+    return redirectUrl.toString();
+  }
+
+  async redeemHandoffToken(handoffToken: string): Promise<{
+    user: AuthUser;
+    accessToken: string;
+    refreshToken: string;
+  }> {
+    let claims;
+    try {
+      claims = verifyHandoffToken(handoffToken, this.getJwtSecret());
+    } catch (error) {
+      throw new UnauthorizedException((error as Error).message);
+    }
+
+    const user = await this.verifyAccessToken(claims.accessToken);
+    return {
+      user,
+      accessToken: claims.accessToken,
+      refreshToken: claims.refreshToken,
+    };
   }
 
   buildGoogleLogin(): { authorizationUrl: string; oauthStateCookie: string } {
@@ -311,12 +342,12 @@ export class AuthService {
     res.cookie(
       ACCESS_TOKEN_COOKIE,
       session.accessToken,
-      buildCookieOptions(ACCESS_TOKEN_LIFETIME_SECONDS, this.isProduction()),
+      buildSessionCookieOptions(ACCESS_TOKEN_LIFETIME_SECONDS),
     );
     res.cookie(
       REFRESH_TOKEN_COOKIE,
       session.refreshToken,
-      buildCookieOptions(REFRESH_TOKEN_LIFETIME_SECONDS, this.isProduction()),
+      buildSessionCookieOptions(REFRESH_TOKEN_LIFETIME_SECONDS),
     );
     res.clearCookie(OAUTH_STATE_COOKIE, { path: '/' });
   }

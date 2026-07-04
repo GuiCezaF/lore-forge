@@ -8,6 +8,7 @@ type LandingHeroProps = {
   authUrl: string;
   bypassUrl: string;
   isDev: boolean;
+  authError?: string;
 };
 
 function GoogleLogo() {
@@ -39,8 +40,17 @@ function GoogleLogo() {
   );
 }
 
-export function LandingHero({ authUrl, bypassUrl, isDev }: LandingHeroProps) {
+export function LandingHero({
+  authUrl,
+  bypassUrl,
+  isDev,
+  authError,
+}: LandingHeroProps) {
   const t = useTranslations("login");
+  const authErrorMessage =
+    authError === "failed" || authError === "missing" || authError === "session"
+      ? t(`authError.${authError}`)
+      : null;
 
   return (
     <section className="relative overflow-hidden rounded-3xl border border-red-950/40 bg-zinc-950 p-8 shadow-2xl shadow-black/80 sm:p-12 max-w-lg w-full mx-auto">
@@ -64,6 +74,11 @@ export function LandingHero({ authUrl, bypassUrl, isDev }: LandingHeroProps) {
           <p className="text-zinc-400 max-w-sm mx-auto text-sm leading-relaxed">
             {t("tagline")}
           </p>
+          {authErrorMessage ? (
+            <p className="rounded-lg border border-red-900/40 bg-red-950/20 px-3 py-2 text-xs text-red-300">
+              {authErrorMessage}
+            </p>
+          ) : null}
         </div>
 
         <div className="w-full flex flex-col gap-4 items-center">

@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { CrudPanel } from "@/app/components/crud-panel";
 import type { Monster } from "@/app/types/entities";
+import { getBrowserApiUrl } from "@/lib/api-url";
 
 type CampaignOption = {
   id: string;
@@ -12,7 +13,7 @@ type CampaignOption = {
 };
 
 export default function MonstersPage() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+  const apiUrl = getBrowserApiUrl();
   const [campaignOptions, setCampaignOptions] = useState<CampaignOption[]>([]);
 
   useEffect(() => {

@@ -11,10 +11,15 @@
   "login": {
     "badge": "Portal de Investigação Paranormal",
     "title": "LoreForge",
-    "tagline": "A verdade está além do véu. Forje sua investigação, rastreie pistas e comande o paranormal.",
+    "tagline": "A verdade está além da Membrana. Forje sua investigação, rastreie pistas e comande o paranormal.",
     "signInGoogle": "Entrar com Google",
     "devBypass": "Login Dev (Ignorar Google Auth)",
-    "disclaimer": "LoreForge é uma plataforma VTT não oficial."
+    "disclaimer": "LoreForge é uma plataforma VTT não oficial.",
+    "authError": {
+      "failed": "Não foi possível concluir o login. Tente novamente.",
+      "missing": "Sessão de login inválida ou expirada. Tente novamente.",
+      "session": "Sua sessão expirou ou não pôde ser validada. Entre novamente."
+    }
   },
   "layout": {
     "home": "Início",
@@ -22,6 +27,6 @@
     "player": "Jogador",
     "investigator": "Investigador",
     "logout": "Sair",
-    "loading": "Conectando ao Véu..."
+    "loading": "Conectando à Membrana..."
   }
 }
