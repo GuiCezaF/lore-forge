@@ -1,0 +1,14 @@
+{
+  "name": "lore-forge",
+  "private": true,
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "build:web": "pnpm --dir apps/web build",
+    "dev:web": "pnpm --dir apps/web dev",
+    "dev:api": "pnpm --dir apps/api start:dev",
+    "vercel-build": "pnpm --dir apps/web build"
+  },
+  "dependencies": {
+    "next": "16.2.9"
+  }
+}
