@@ -16,7 +16,6 @@ import {
 } from "@/app/components/app-ui";
 
 type FieldType = "text" | "textarea" | "select" | "json";
-type CrudItem = { id: string; [key: string]: unknown };
 
 export type CrudField = {
   name: string;
@@ -27,19 +26,21 @@ export type CrudField = {
   visible?: (values: Record<string, string>) => boolean;
 };
 
-export type CrudPanelProps = {
+export type CrudPanelProps<T extends { id: string }> = {
   title: string;
   description?: string;
   endpoint: string;
   fields: CrudField[];
   emptyValues: Record<string, string>;
-  itemLabel: (item: CrudItem) => string;
-  itemMeta?: (item: CrudItem) => string;
-  itemSubline?: (item: CrudItem) => string;
-  cloneEndpoint?: (item: CrudItem) => string | null;
-  filterItems?: (item: CrudItem) => boolean;
+
+  itemLabel: (item: T) => string;
+  itemMeta?: (item: T) => string;
+  itemSubline?: (item: T) => string;
+  cloneEndpoint?: (item: T) => string | null;
+  filterItems?: (item: T) => boolean;
+
   buildPayload: (values: Record<string, string>) => Record<string, unknown>;
-  mapItemToForm: (item: CrudItem) => Record<string, string>;
+  mapItemToForm: (item: T) => Record<string, string>;
 };
 
 function buildHeaders() {
@@ -48,7 +49,7 @@ function buildHeaders() {
   };
 }
 
-export function CrudPanel({
+export function CrudPanel<T extends { id: string }>({
   title,
   description,
   endpoint,
@@ -61,35 +62,42 @@ export function CrudPanel({
   filterItems,
   buildPayload,
   mapItemToForm,
-}: CrudPanelProps) {
+}: CrudPanelProps<T>) {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-  const [items, setItems] = useState<CrudItem[]>([]);
+
+  const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>(emptyValues);
   const [error, setError] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
+
   const visibleItems = filterItems ? items.filter(filterItems) : items;
 
   async function loadItems() {
     setLoading(true);
     setError(null);
+
     try {
       const response = await fetch(`${apiUrl}${endpoint}`, {
         credentials: "include",
       });
+
       if (!response.ok) {
         throw new Error(`Failed to load ${endpoint}`);
       }
+
       const data = await response.json();
-      const nextItems = Array.isArray(data) ? (data as CrudItem[]) : [];
+      const nextItems = Array.isArray(data) ? (data as T[]) : [];
+
       setItems(nextItems);
+
       if (nextItems.length === 0) {
         setComposerOpen(true);
       }
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Failed to load data");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load data");
       setItems([]);
       setComposerOpen(true);
     } finally {
@@ -98,11 +106,7 @@ export function CrudPanel({
   }
 
   useEffect(() => {
-    async function run() {
-      await loadItems();
-    }
-
-    void run();
+    void loadItems();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endpoint, apiUrl]);
 
@@ -112,7 +116,7 @@ export function CrudPanel({
     setComposerOpen(true);
   }
 
-  function startEdit(item: CrudItem) {
+  function startEdit(item: T) {
     setSelectedId(item.id);
     setForm(mapItemToForm(item));
     setComposerOpen(true);
@@ -126,8 +130,10 @@ export function CrudPanel({
     event.preventDefault();
     setSaving(true);
     setError(null);
+
     try {
       const payload = buildPayload(form);
+
       const response = await fetch(
         `${apiUrl}${selectedId ? `${endpoint}/${selectedId}` : endpoint}`,
         {
@@ -137,16 +143,16 @@ export function CrudPanel({
           body: JSON.stringify(payload),
         },
       );
+
       if (!response.ok) {
         throw new Error(`Failed to save ${title}`);
       }
+
       await loadItems();
       startCreate();
       setComposerOpen(false);
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error ? submitError.message : `Failed to save ${title}`,
-      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to save ${title}`);
     } finally {
       setSaving(false);
     }
@@ -154,35 +160,37 @@ export function CrudPanel({
 
   async function handleDelete(itemId: string) {
     setError(null);
+
     try {
       const response = await fetch(`${apiUrl}${endpoint}/${itemId}`, {
         method: "DELETE",
         credentials: "include",
       });
+
       if (!response.ok) {
         throw new Error(`Failed to delete ${title}`);
       }
+
       if (selectedId === itemId) {
         startCreate();
       }
+
       await loadItems();
-    } catch (deleteError) {
+    } catch (err) {
       setError(
-        deleteError instanceof Error ? deleteError.message : `Failed to delete ${title}`,
+        err instanceof Error ? err.message : `Failed to delete ${title}`,
       );
     }
   }
 
-  async function handleClone(item: CrudItem) {
-    if (!cloneEndpoint) {
-      return;
-    }
+  async function handleClone(item: T) {
+    if (!cloneEndpoint) return;
+
     const target = cloneEndpoint(item);
-    if (!target) {
-      return;
-    }
+    if (!target) return;
 
     setError(null);
+
     try {
       const response = await fetch(`${apiUrl}${target}`, {
         method: "POST",
@@ -190,12 +198,14 @@ export function CrudPanel({
         headers: buildHeaders(),
         body: JSON.stringify({}),
       });
+
       if (!response.ok) {
         throw new Error(`Failed to clone ${title}`);
       }
+
       await loadItems();
-    } catch (cloneError) {
-      setError(cloneError instanceof Error ? cloneError.message : `Failed to clone ${title}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to clone ${title}`);
     }
   }
 
@@ -213,6 +223,7 @@ export function CrudPanel({
             <RefreshCw className="h-3.5 w-3.5" />
             Atualizar
           </button>
+
           <button
             type="button"
             onClick={startCreate}
@@ -231,13 +242,17 @@ export function CrudPanel({
         <div className="border-b border-zinc-900 lg:border-b-0 lg:border-r">
           <div className="border-b border-zinc-900 px-6 py-4">
             <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-              {visibleItems.length} registro{visibleItems.length === 1 ? "" : "s"}
+              {visibleItems.length} registro
+              {visibleItems.length === 1 ? "" : "s"}
             </div>
           </div>
+
           {loading ? (
             <div className="p-6 text-sm text-zinc-500">Carregando...</div>
           ) : visibleItems.length === 0 ? (
-            <div className="p-6 text-sm text-zinc-500">Nenhum registro encontrado.</div>
+            <div className="p-6 text-sm text-zinc-500">
+              Nenhum registro encontrado.
+            </div>
           ) : (
             <ul className="space-y-3 p-4">
               {visibleItems.map((item) => {
@@ -259,39 +274,57 @@ export function CrudPanel({
                       onClick={() => startEdit(item)}
                       className="block w-full text-left"
                     >
-                      <div className="font-medium text-zinc-100">{itemLabel(item)}</div>
-                      {itemSubline ? (
-                        <div className="mt-1 text-sm text-zinc-500">{itemSubline(item)}</div>
-                      ) : null}
-                      {itemMeta ? (
+                      <div className="font-medium text-zinc-100">
+                        {itemLabel(item)}
+                      </div>
+
+                      {itemSubline && (
+                        <div className="mt-1 text-sm text-zinc-500">
+                          {itemSubline(item)}
+                        </div>
+                      )}
+
+                      {itemMeta && (
                         <div className="mt-3 text-[11px] uppercase tracking-[0.2em] text-zinc-600">
                           {itemMeta(item)}
                         </div>
-                      ) : null}
+                      )}
                     </button>
+
                     <div className="mt-4 flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => startEdit(item)}
-                        className={cx(secondaryButtonClassName, "px-2.5 py-1.5")}
+                        className={cx(
+                          secondaryButtonClassName,
+                          "px-2.5 py-1.5",
+                        )}
                       >
                         <Pencil className="h-3 w-3" />
                         Editar
                       </button>
-                      {clonePath ? (
+
+                      {clonePath && (
                         <button
                           type="button"
                           onClick={() => void handleClone(item)}
-                          className={cx(secondaryButtonClassName, "px-2.5 py-1.5")}
+                          className={cx(
+                            secondaryButtonClassName,
+                            "px-2.5 py-1.5",
+                          )}
                         >
                           <Copy className="h-3 w-3" />
                           Clonar
                         </button>
-                      ) : null}
+                      )}
+
                       <button
                         type="button"
                         onClick={() => void handleDelete(item.id)}
-                        className={cx(dangerButtonClassName, "px-2.5 py-1.5 text-xs")}
+                        className={cx(
+                          dangerButtonClassName,
+                          "px-2.5 py-1.5 text-xs",
+                        )}
                       >
                         <Trash2 className="h-3 w-3" />
                         Excluir
@@ -321,11 +354,15 @@ export function CrudPanel({
                 .map((field) => {
                   return (
                     <label key={field.name} className={fieldLabelClassName}>
-                      <span className={fieldCaptionClassName}>{field.label}</span>
+                      <span className={fieldCaptionClassName}>
+                        {field.label}
+                      </span>
                       {field.type === "textarea" || field.type === "json" ? (
                         <textarea
                           value={form[field.name] ?? ""}
-                          onChange={(event) => updateField(field.name, event.target.value)}
+                          onChange={(event) =>
+                            updateField(field.name, event.target.value)
+                          }
                           placeholder={field.placeholder}
                           rows={field.type === "json" ? 8 : 4}
                           className={cx(
@@ -336,7 +373,9 @@ export function CrudPanel({
                       ) : field.type === "select" ? (
                         <select
                           value={form[field.name] ?? ""}
-                          onChange={(event) => updateField(field.name, event.target.value)}
+                          onChange={(event) =>
+                            updateField(field.name, event.target.value)
+                          }
                           className={inputClassName}
                         >
                           <option value="">Selecione</option>
@@ -350,7 +389,9 @@ export function CrudPanel({
                         <input
                           type="text"
                           value={form[field.name] ?? ""}
-                          onChange={(event) => updateField(field.name, event.target.value)}
+                          onChange={(event) =>
+                            updateField(field.name, event.target.value)
+                          }
                           placeholder={field.placeholder}
                           className={inputClassName}
                         />
@@ -394,7 +435,8 @@ export function CrudPanel({
                 Abra o editor só quando precisar
               </h3>
               <p className="mt-2 text-sm leading-6 text-zinc-500">
-                A lista fica limpa por padrão. Use editar em um registro existente ou crie um novo item.
+                A lista fica limpa por padrão. Use editar em um registro
+                existente ou crie um novo item.
               </p>
               <button
                 type="button"

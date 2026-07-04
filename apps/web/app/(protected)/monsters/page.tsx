@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { CrudPanel } from "@/app/components/crud-panel";
+import type { Monster } from "@/app/types/entities";
 
 type CampaignOption = {
   id: string;
@@ -34,7 +35,7 @@ export default function MonstersPage() {
         Voltar
       </Link>
 
-      <CrudPanel
+      <CrudPanel<Monster>
         title="Monstros"
         description="Templates do sistema e variantes privadas ou de campanha."
         endpoint="/monsters"

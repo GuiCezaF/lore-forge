@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { CrudPanel } from "@/app/components/crud-panel";
+import type { Item } from "@/app/types/entities";
 
 type CampaignOption = {
   id: string;
@@ -43,7 +44,7 @@ export default function ItemsPage() {
         Voltar
       </Link>
 
-      <CrudPanel
+      <CrudPanel<Item>
         title={pageTitle}
         description={pageDescription}
         endpoint="/items"
