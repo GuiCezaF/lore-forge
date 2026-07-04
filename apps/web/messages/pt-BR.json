@@ -18,7 +18,8 @@
     "authError": {
       "failed": "Não foi possível concluir o login. Tente novamente.",
       "missing": "Sessão de login inválida ou expirada. Tente novamente.",
-      "session": "Sua sessão expirou ou não pôde ser validada. Entre novamente."
+      "session": "Sua sessão expirou ou não pôde ser validada. Entre novamente.",
+      "config": "O frontend não está apontando para a API de produção. Configure NEXT_PUBLIC_API_URL na Vercel e faça redeploy."
     }
   },
   "layout": {

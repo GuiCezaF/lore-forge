@@ -17,6 +17,17 @@ function isValidUrlList(value: string): boolean {
     .every((entry) => URL.canParse(entry));
 }
 
+const GOOGLE_OAUTH_CALLBACK_PATH = '/auth/google/callback';
+
+function isGoogleOAuthCallbackUrl(value: string): boolean {
+  try {
+    const { pathname } = new URL(value);
+    return pathname.replace(/\/+$/, '') === GOOGLE_OAUTH_CALLBACK_PATH;
+  } catch {
+    return false;
+  }
+}
+
 const environmentSchema = z
   .object({
     NODE_ENV: z
@@ -25,7 +36,14 @@ const environmentSchema = z
     PORT: z.coerce.number().int().positive().default(DEFAULT_PORT),
     GOOGLE_CLIENT_ID: z.string().trim().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().trim().min(1).optional(),
-    GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
+    GOOGLE_OAUTH_REDIRECT_URI: z
+      .string()
+      .url()
+      .refine(isGoogleOAuthCallbackUrl, {
+        message:
+          'GOOGLE_OAUTH_REDIRECT_URI must end with /auth/google/callback (not /auth/google)',
+      })
+      .optional(),
     JWT_SECRET: z.string().min(1).default(DEFAULT_JWT_SECRET),
     API_BASE_URL: z.string().url().default(DEFAULT_API_BASE_URL),
     FRONTEND_BASE_URL: z

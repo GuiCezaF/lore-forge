@@ -48,7 +48,10 @@ export function LandingHero({
 }: LandingHeroProps) {
   const t = useTranslations("login");
   const authErrorMessage =
-    authError === "failed" || authError === "missing" || authError === "session"
+    authError === "failed" ||
+    authError === "missing" ||
+    authError === "session" ||
+    authError === "config"
       ? t(`authError.${authError}`)
       : null;
 

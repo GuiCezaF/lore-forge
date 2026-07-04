@@ -18,7 +18,8 @@
     "authError": {
       "failed": "Could not complete sign-in. Please try again.",
       "missing": "Invalid or expired sign-in session. Please try again.",
-      "session": "Your session expired or could not be validated. Please sign in again."
+      "session": "Your session expired or could not be validated. Please sign in again.",
+      "config": "The frontend is not pointing at the production API. Set NEXT_PUBLIC_API_URL in Vercel and redeploy."
     }
   },
   "layout": {

@@ -3,7 +3,7 @@ import { AUTH_AUDIENCE, AUTH_ISSUER } from './auth.constants';
 import { createJwt, verifyJwt } from './jwt';
 
 export const AUTH_HANDOFF_AUDIENCE = 'loreforge-auth-handoff';
-export const HANDOFF_TOKEN_LIFETIME_SECONDS = 60;
+export const HANDOFF_TOKEN_LIFETIME_SECONDS = 180;
 
 export interface HandoffTokenClaims {
   accessToken: string;

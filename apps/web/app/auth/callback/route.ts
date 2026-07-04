@@ -6,7 +6,10 @@ import {
   REFRESH_TOKEN_LIFETIME_SECONDS,
   buildSessionCookieOptions,
 } from "@/lib/auth-cookies";
-import { getServerApiUrl } from "@/lib/api-url";
+import {
+  getServerApiUrl,
+  isServerApiUrlMisconfigured,
+} from "@/lib/api-url";
 
 export async function GET(request: NextRequest) {
   const handoff = request.nextUrl.searchParams.get("handoff");
@@ -14,18 +17,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/?auth=missing", request.url));
   }
 
-  const apiUrl = getServerApiUrl().replace(/\/+$/, "");
+  if (isServerApiUrlMisconfigured()) {
+    console.error(
+      "OAuth handoff redeem skipped: API URL points to localhost in production. Set API_URL or NEXT_PUBLIC_API_URL on the frontend host.",
+    );
+    return NextResponse.redirect(new URL("/?auth=config", request.url));
+  }
+
+  const apiUrl = getServerApiUrl();
   let redeemResponse: Response;
   try {
     redeemResponse = await fetch(
       `${apiUrl}/auth/handoff/redeem?token=${encodeURIComponent(handoff)}`,
       { cache: "no-store" },
     );
-  } catch {
+  } catch (error) {
+    console.error("OAuth handoff redeem request failed", {
+      apiUrl,
+      error,
+    });
     return NextResponse.redirect(new URL("/?auth=failed", request.url));
   }
 
   if (!redeemResponse.ok) {
+    console.error("OAuth handoff redeem rejected", {
+      apiUrl,
+      status: redeemResponse.status,
+    });
     return NextResponse.redirect(new URL("/?auth=failed", request.url));
   }
 

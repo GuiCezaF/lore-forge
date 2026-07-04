@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getBrowserApiUrl, hasSplitOrigins } from "./api-url";
+import {
+  getBrowserApiUrl,
+  getServerApiUrl,
+  hasSplitOrigins,
+  isServerApiUrlMisconfigured,
+  resolveServerApiUrl,
+} from "./api-url";
 
 describe("api-url", () => {
   const originalEnv = { ...process.env };
@@ -20,5 +26,21 @@ describe("api-url", () => {
 
     expect(hasSplitOrigins("localhost:3000")).toBe(false);
     expect(getBrowserApiUrl()).toBe("http://localhost:3000");
+  });
+
+  it("prefers API_URL for server-side requests", () => {
+    process.env.API_URL = "https://api.example.com";
+    process.env.NEXT_PUBLIC_API_URL = "https://public.example.com";
+
+    expect(resolveServerApiUrl()).toBe("https://api.example.com");
+    expect(getServerApiUrl()).toBe("https://api.example.com");
+  });
+
+  it("flags localhost API URL in production", () => {
+    process.env.NODE_ENV = "production";
+    delete process.env.API_URL;
+    delete process.env.NEXT_PUBLIC_API_URL;
+
+    expect(isServerApiUrlMisconfigured()).toBe(true);
   });
 });
