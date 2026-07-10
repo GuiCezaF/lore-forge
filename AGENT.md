@@ -1,79 +1,267 @@
-# Guia operacional do projeto
+# LoreForge Agent Guide
 
-LoreForge é uma plataforma web de mesa virtual para RPG, com foco inicial em Ordem Paranormal RPG.
+## Project
 
-## Referências centrais
+LoreForge is a private web-based Virtual Tabletop (VTT) for **Ordem Paranormal RPG**.
 
-- [README.md](README.md): entrada rápida do repositório.
-- [docs/produto.md](docs/produto.md): escopo, requisitos, roadmap e critérios de aceite.
-- [docs/arquitetura.md](docs/arquitetura.md): monorepo, DDD, testes, setup e deploy.
-- [docs/contratos.md](docs/contratos.md): REST/OpenAPI e eventos WebSocket.
-- [docs/operacao.md](docs/operacao.md): monetização, métricas, variáveis de ambiente e operação.
-- [docs/licenca-ordem-paranormal.md](docs/licenca-ordem-paranormal.md): conformidade legal.
+The project is intended only for me and my friends. Prioritize simplicity, maintainability, performance, and reliability over unnecessary abstractions or premature optimization.
 
-## Arquitetura
+---
 
-O repositório tem dois apps autocontidos:
+# Core Principles
 
-- `apps/web`: frontend Next.js.
-- `apps/api`: backend NestJS.
+- Produce production-ready code.
+- Prefer simple, maintainable solutions.
+- Preserve existing architecture and conventions.
+- Do not introduce new libraries or frameworks unless explicitly requested.
+- Keep changes as small and focused as possible.
+- Favor readability over cleverness.
 
-Não há import de código entre os apps. A comunicação acontece apenas por REST/OpenAPI e WebSocket. A API é a fonte da verdade para regras de negócio, validação autoritativa, persistência, RBAC, rolagem de dados, storage e métricas.
+---
+
+# Architecture
+
+The repository contains two independent applications:
+
+```
+apps/
+  web/   # Next.js
+  api/   # NestJS
+```
+
+Rules:
+
+- Never share code between applications.
+- Communication happens only through REST/OpenAPI and WebSocket.
+- The backend is the single source of truth.
+- Never implement authoritative game logic in the frontend.
+
+---
+
+# Technology Stack
 
 ## Backend
 
-- Usar NestJS, Drizzle, PostgreSQL, Redis e storage S3 compatível.
-- Organizar contextos com regra relevante usando DDD pragmático: `api`, `application`, `domain`, `infrastructure`.
-- Controllers não contêm regra de negócio.
-- Domain não importa infraestrutura.
-- DTOs de saída não expõem hashes, tokens, segredos ou PII desnecessária.
-- REST é documentado por Swagger em `/api/docs`.
-- WebSocket é documentado em [docs/contratos.md](docs/contratos.md).
+- NestJS
+- Drizzle ORM
+- PostgreSQL
+- Redis
+- S3-compatible storage
 
 ## Frontend
 
-- Usar Next.js, TypeScript, Tailwind, Zustand e TanStack Query.
-- Usar PixiJS no mapa, React Flow no quadro e TipTap nos documentos.
-- Não calcular regra autoritativa de jogo no cliente.
-- Espelhar contratos REST/WS apenas para tipagem, validação de UX e integração.
-- Ads e analytics são client-side e nunca aparecem no modo apresentação.
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- Zustand
+- TanStack Query
+- PixiJS
+- React Flow
+- TipTap
 
-## Testes
+Use the existing stack. Avoid introducing alternatives unless requested.
 
-- API: Jest unit, integração e e2e, priorizando domínio, use cases, repositories e controllers/gateway.
-- Web: Vitest, React Testing Library, MSW e Cypress nos fluxos críticos.
-- Mudança de contrato exige teste cobrindo o fluxo e atualização de Swagger ou [docs/contratos.md](docs/contratos.md).
+---
 
-## Documentação
+# Code Style
 
-Não criar `.md` ao lado de módulo, domínio, componente ou pasta por padrão. Isso polui o repositório e tende a duplicar o que já está em testes, Swagger e código.
+## General
 
-Atualize documentação somente quando a mudança alterar:
+- Write code in English.
+- Documentation may remain in Portuguese.
+- Use strict TypeScript.
+- Avoid `any`.
+- Prefer explicit types.
+- One export per file.
+- Prefer immutable data.
+- Avoid magic numbers.
+- Prefer constants.
 
-- escopo, requisito ou roadmap: [docs/produto.md](docs/produto.md);
-- arquitetura, padrão técnico, setup ou deploy: [docs/arquitetura.md](docs/arquitetura.md);
-- contrato REST/WS público: [docs/contratos.md](docs/contratos.md);
-- métricas, ads, env ou operação: [docs/operacao.md](docs/operacao.md);
-- conformidade legal: [docs/licenca-ordem-paranormal.md](docs/licenca-ordem-paranormal.md).
+## Naming
 
-Comentários no código devem explicar decisões não óbvias, invariantes ou integrações frágeis. Não documentar mecanicamente todo método, classe ou componente.
+- PascalCase for classes and types.
+- camelCase for variables, functions and methods.
+- kebab-case for files and folders.
+- UPPERCASE for environment variables.
+- Functions should start with verbs.
+- Boolean names should use `is`, `has`, `can` or `should`.
 
-## Regras de domínio
+## Functions
 
-- Login via Google OAuth.
-- Campanhas têm papéis `gm`, `player` e `spectator`.
-- Plano `free` mostra anúncios; `premium` remove anúncios.
-- No MVP, Premium não bloqueia funcionalidades de jogo.
-- Modo apresentação nunca exibe anúncios.
-- Rolagem de ficha é recalculada pela API.
-- Sync de mapa deve suportar pelo menos 4 clientes simultâneos por campanha.
+- Keep functions small and focused.
+- Give each function a single responsibility.
+- Prefer early returns over nested conditions.
+- Group multiple parameters into objects.
+- Prefer composition over inheritance.
+- Apply SOLID only when it improves the design.
 
-## Conformidade Ordem Paranormal
+## Comments
 
-LoreForge opera sob a Licença da Comunidade de Ordem Paranormal v1.0 como plataforma VTT comercial.
+Write comments or JSDoc only when explaining:
 
-- Usar apenas terminologia geral permitida.
-- Não usar marca, logo, identidade visual, textos, imagens ou conteúdo de cânone.
-- Não incluir templates pré-populados com material oficial.
-- Não incluir material gerado por IA com monetização ativa, salvo mudança legal explícita.
-- Exibir selo da licença e disclaimer de não oficialidade.
+- architectural decisions;
+- business rules;
+- invariants;
+- public contracts;
+- external integrations;
+- non-obvious behavior.
+
+Do not document obvious code.
+
+---
+
+# Backend Guidelines
+
+Organize business domains using pragmatic DDD whenever complexity justifies it.
+
+```
+api/
+application/
+domain/
+infrastructure/
+```
+
+Rules:
+
+- Controllers only handle transport.
+- Business rules belong to Application or Domain.
+- Domain never depends on Infrastructure.
+- Validate all inputs using DTOs.
+- Never expose internal entities directly.
+- Return Response DTOs.
+- Keep OpenAPI documentation synchronized with public APIs.
+
+---
+
+# Frontend Guidelines
+
+- Prefer React Server Components.
+- Minimize `use client`.
+- Avoid unnecessary `useEffect`.
+- Keep components small and reusable.
+- Use Zustand for client state.
+- Use TanStack Query for server state.
+- Use Zod when schema validation is needed.
+- Prefer mobile-first responsive layouts.
+- Use dynamic imports when beneficial.
+- Optimize images and rendering performance.
+- The frontend validates UX only; the backend validates business rules.
+
+---
+
+# Security
+
+Assume every external input is untrusted.
+
+Always:
+
+- Validate all inputs.
+- Validate authentication and authorization on the backend.
+- Validate resource ownership.
+- Use parameterized database queries.
+- Protect secrets.
+- Fail securely.
+- Apply the Principle of Least Privilege.
+- Prefer secure defaults.
+- Use well-maintained libraries.
+
+Never:
+
+- Trust frontend validation.
+- Trust frontend authorization.
+- Expose stack traces.
+- Expose secrets or internal implementation details.
+- Store secrets in source code.
+- Implement custom cryptography.
+
+When implementing or reviewing code, always consider:
+
+- Authentication
+- Authorization
+- IDOR / BOLA
+- Injection attacks
+- XSS
+- CSRF
+- SSRF
+- Path Traversal
+- Sensitive data exposure
+- Business logic abuse
+
+Choose the safest reasonable implementation.
+
+---
+
+# Testing
+
+Backend:
+
+- Jest for unit, integration and end-to-end tests.
+- Prioritize Domain, Use Cases, Repositories and Controllers.
+
+Frontend:
+
+- Vitest
+- React Testing Library
+- MSW
+- Cypress for critical user flows
+
+Whenever public contracts change:
+
+- Update tests.
+- Update OpenAPI.
+- Update WebSocket types when applicable.
+
+---
+
+# Documentation
+
+Do not create additional Markdown files unless explicitly requested.
+
+Update documentation only when changing:
+
+- architecture;
+- public API contracts;
+- important business rules;
+- project setup or deployment;
+- licensing.
+
+---
+
+# Domain Rules
+
+- Authentication uses Google OAuth.
+- Campaign roles are `gm`, `player` and `spectator`.
+- Character sheets and dice rolls are always validated by the backend.
+- The API is authoritative for permissions, persistence and game rules.
+- Real-time synchronization must support at least four simultaneous players per campaign.
+
+---
+
+# Ordem Paranormal License
+
+LoreForge follows the **Ordem Paranormal Community License v1.0**.
+
+Always:
+
+- Use only permitted generic terminology.
+- Display the required license notice and unofficial disclaimer.
+
+Never:
+
+- Use official logos or visual identity.
+- Include copyrighted canon content.
+- Include official texts, images or pre-filled official material.
+
+---
+
+# Expected Behavior
+
+When solving a task:
+
+1. Understand the existing implementation before changing it.
+2. Reuse existing patterns whenever possible.
+3. Produce complete, production-ready code.
+4. Keep changes minimal and consistent.
+5. Consider edge cases, performance, security and maintainability.
+6. Do not simplify by removing important functionality.
+7. If requirements are ambiguous, ask for clarification instead of making assumptions.
