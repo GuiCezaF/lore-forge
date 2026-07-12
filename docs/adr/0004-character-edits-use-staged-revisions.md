@@ -1,0 +1,3 @@
+# Character edits use staged revisions
+
+Editing an active character occurs in an autosaved working revision while the last valid sheet remains active. Permanent Sheet Data is read-only during normal play and changes only through an explicit edit mode. A NEX reduction or other change may temporarily invalidate dependent choices, but submission is blocked with explicit conflicts until the owner resolves them; the system never silently deletes selections or publishes a partially invalid build. Campaign resources such as current HP, SAN, and PE remain fast controls that autosave immediately during play.

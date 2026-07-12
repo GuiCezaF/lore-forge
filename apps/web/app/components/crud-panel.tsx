@@ -15,6 +15,7 @@ import {
   textareaClassName,
 } from "@/app/components/app-ui";
 import { getBrowserApiUrl } from "@/lib/api-url";
+import { useTranslations } from "next-intl";
 
 type FieldType = "text" | "textarea" | "select" | "json";
 
@@ -64,6 +65,7 @@ export function CrudPanel<T extends { id: string }>({
   buildPayload,
   mapItemToForm,
 }: CrudPanelProps<T>) {
+  const t = useTranslations("crud");
   const apiUrl = getBrowserApiUrl();
 
   const [items, setItems] = useState<T[]>([]);
@@ -86,7 +88,7 @@ export function CrudPanel<T extends { id: string }>({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load ${endpoint}`);
+        throw new Error(t("loadFailed"));
       }
 
       const data = await response.json();
@@ -98,7 +100,7 @@ export function CrudPanel<T extends { id: string }>({
         setComposerOpen(true);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load data");
+      setError(err instanceof Error ? err.message : t("loadFailed"));
       setItems([]);
       setComposerOpen(true);
     } finally {
@@ -146,14 +148,14 @@ export function CrudPanel<T extends { id: string }>({
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to save ${title}`);
+        throw new Error(t("saveFailed"));
       }
 
       await loadItems();
       startCreate();
       setComposerOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to save ${title}`);
+      setError(err instanceof Error ? err.message : t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -169,7 +171,7 @@ export function CrudPanel<T extends { id: string }>({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to delete ${title}`);
+        throw new Error(t("deleteFailed"));
       }
 
       if (selectedId === itemId) {
@@ -179,7 +181,7 @@ export function CrudPanel<T extends { id: string }>({
       await loadItems();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : `Failed to delete ${title}`,
+        err instanceof Error ? err.message : t("deleteFailed"),
       );
     }
   }
@@ -201,12 +203,12 @@ export function CrudPanel<T extends { id: string }>({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to clone ${title}`);
+        throw new Error(t("cloneFailed"));
       }
 
       await loadItems();
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to clone ${title}`);
+      setError(err instanceof Error ? err.message : t("cloneFailed"));
     }
   }
 
@@ -222,7 +224,7 @@ export function CrudPanel<T extends { id: string }>({
             className={secondaryButtonClassName}
           >
             <RefreshCw className="h-3.5 w-3.5" />
-            Atualizar
+            {t("refresh")}
           </button>
 
           <button
@@ -234,7 +236,7 @@ export function CrudPanel<T extends { id: string }>({
             )}
           >
             <Plus className="h-3.5 w-3.5" />
-            Novo
+            {t("new")}
           </button>
         </div>
       }
@@ -243,16 +245,15 @@ export function CrudPanel<T extends { id: string }>({
         <div className="border-b border-zinc-900 lg:border-b-0 lg:border-r">
           <div className="border-b border-zinc-900 px-6 py-4">
             <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-              {visibleItems.length} registro
-              {visibleItems.length === 1 ? "" : "s"}
+              {t("records", { count: visibleItems.length })}
             </div>
           </div>
 
           {loading ? (
-            <div className="p-6 text-sm text-zinc-500">Carregando...</div>
+            <div className="p-6 text-sm text-zinc-500">{t("loading")}</div>
           ) : visibleItems.length === 0 ? (
             <div className="p-6 text-sm text-zinc-500">
-              Nenhum registro encontrado.
+              {t("empty")}
             </div>
           ) : (
             <ul className="space-y-3 p-4">
@@ -302,7 +303,7 @@ export function CrudPanel<T extends { id: string }>({
                         )}
                       >
                         <Pencil className="h-3 w-3" />
-                        Editar
+                        {t("edit")}
                       </button>
 
                       {clonePath && (
@@ -315,7 +316,7 @@ export function CrudPanel<T extends { id: string }>({
                           )}
                         >
                           <Copy className="h-3 w-3" />
-                          Clonar
+                          {t("clone")}
                         </button>
                       )}
 
@@ -328,7 +329,7 @@ export function CrudPanel<T extends { id: string }>({
                         )}
                       >
                         <Trash2 className="h-3 w-3" />
-                        Excluir
+                        {t("delete")}
                       </button>
                     </div>
                   </li>
@@ -343,10 +344,10 @@ export function CrudPanel<T extends { id: string }>({
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-1">
                 <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                  {selectedId ? "Edição" : "Criação"}
+                  {selectedId ? t("editing") : t("creating")}
                 </div>
                 <h3 className="text-xl font-semibold text-zinc-100">
-                  {selectedId ? "Editar registro" : "Novo registro"}
+                  {selectedId ? t("editRecord") : t("newRecord")}
                 </h3>
               </div>
 
@@ -379,7 +380,7 @@ export function CrudPanel<T extends { id: string }>({
                           }
                           className={inputClassName}
                         >
-                          <option value="">Selecione</option>
+                          <option value="">{t("select")}</option>
                           {field.options?.map((option) => (
                             <option key={option.value} value={option.value}>
                               {option.label}
@@ -416,28 +417,27 @@ export function CrudPanel<T extends { id: string }>({
                   }}
                   className={subtleButtonClassName}
                 >
-                  Limpar
+                  {t("clear")}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className={primaryButtonClassName}
                 >
-                  {saving ? "Salvando..." : selectedId ? "Atualizar" : "Criar"}
+                  {saving ? t("saving") : selectedId ? t("update") : t("create")}
                 </button>
               </div>
             </form>
           ) : (
             <div className="flex h-full min-h-56 flex-col justify-center rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/40 p-6 text-center">
               <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                Fluxo enxuto
+                {t("compactFlow")}
               </div>
               <h3 className="mt-3 text-xl font-semibold text-zinc-100">
-                Abra o editor só quando precisar
+                {t("openEditor")}
               </h3>
               <p className="mt-2 text-sm leading-6 text-zinc-500">
-                A lista fica limpa por padrão. Use editar em um registro
-                existente ou crie um novo item.
+                {t("editorHint")}
               </p>
               <button
                 type="button"
@@ -445,7 +445,7 @@ export function CrudPanel<T extends { id: string }>({
                 className={cx(primaryButtonClassName, "mt-6 self-center")}
               >
                 <Plus className="h-4 w-4" />
-                Criar novo
+                {t("createNew")}
               </button>
             </div>
           )}

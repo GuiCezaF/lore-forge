@@ -5,7 +5,6 @@ import { LogOut, User, Compass, Home as HomeIcon } from "lucide-react";
 import { Toaster } from "sonner";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { LocaleSwitcher } from "../components/locale-switcher";
 import { getBrowserApiUrl } from "@/lib/api-url";
 import { apiFetch } from "@/lib/api-client";
 
@@ -107,8 +106,6 @@ export default function ProtectedLayout({
           </div>
 
           <div className="flex items-center gap-4">
-            <LocaleSwitcher />
-
             {user && (
               <Link
                 href="/profile?edit=1"

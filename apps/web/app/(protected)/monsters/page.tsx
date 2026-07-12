@@ -76,7 +76,7 @@ export default function MonstersPage() {
             type: "json",
             placeholder: '{"hp":0,"attacks":[]}',
           },
-          { name: "imageAssetId", label: "Image asset ID" },
+          { name: "imageAssetId", label: "ID do recurso de imagem" },
         ]}
         itemLabel={(item) => item.name}
         itemMeta={(item) => `${item.scope} · ${item.locked ? "bloqueado" : "editável"}`}
