@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -74,5 +75,15 @@ export class MediaController {
       `inline; filename="${asset.fileName.replace(/"/g, '')}"`,
     );
     asset.body.pipe(res);
+  }
+
+  @Delete(':assetId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async remove(
+    @CurrentUser() user: AuthUser,
+    @Param('assetId') assetId: string,
+  ): Promise<void> {
+    await this.mediaService.deleteImage(user.id, assetId);
   }
 }

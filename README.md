@@ -67,4 +67,3 @@ pnpm dev
 - Ordem Paranormal RPG compatibility: [Ordem Paranormal Community License v1.0](https://ordemparanormal.com.br/licenca).
 
 LoreForge is an unofficial tool and is not affiliated with, partnered with, or endorsed by Rafael "Cellbit" Lange, Jambô Editora, or Ordem Paranormal.
-```

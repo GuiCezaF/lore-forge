@@ -1,18 +1,19 @@
 {
-  "version": "1",
+  "version": "7",
   "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "1",
-      "when": 0,
-      "tag": "0001_initial"
+      "version": "7",
+      "when": 1783792882692,
+      "tag": "0000_ambitious_green_goblin",
+      "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1783125214596,
-      "tag": "0001_calm_leper_queen",
+      "when": 1783879200000,
+      "tag": "0001_ruleset_catalog",
       "breakpoints": true
     }
   ]

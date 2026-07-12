@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { LocaleSwitcher } from "../components/locale-switcher";
 import { getBrowserApiUrl } from "@/lib/api-url";
+import { apiFetch } from "@/lib/api-client";
 
 type AuthUser = {
   id: string;
@@ -31,7 +32,7 @@ export default function ProtectedLayout({
   useEffect(() => {
     async function fetchUser() {
       try {
-        const response = await fetch(`${apiUrl}/auth/me`, {
+        const response = await apiFetch(`${apiUrl}/auth/me`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -60,7 +61,7 @@ export default function ProtectedLayout({
 
   async function handleLogout() {
     try {
-      await fetch(`${apiUrl}/auth/logout`, {
+      await apiFetch(`${apiUrl}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });

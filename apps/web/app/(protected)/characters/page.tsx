@@ -1,115 +1,51 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
-import { CrudPanel } from "@/app/components/crud-panel";
-import type { Character } from "@/app/types/entities";
+import { apiFetch } from "@/lib/api-client";
 import { getBrowserApiUrl } from "@/lib/api-url";
+import { useTranslations } from "next-intl";
 
-type CampaignOption = {
-  id: string;
-  name: string;
-};
+type Character = { id: string; name: string; kind: "pc" | "npc"; status: string; sheetLabel: string | null; campaignId: string | null; nex: number };
+type Campaign = { id: string; ownerUserId: string | null; members?: Array<{ userId: string; role: string }> };
+type AuthUser = { id: string };
 
 export default function CharactersPage() {
+  const t = useTranslations("characters");
+  const [characters, setCharacters] = useState<Character[]>([]);
+  const [canManageNpcs, setCanManageNpcs] = useState(false);
+  const [loading, setLoading] = useState(true);
   const apiUrl = getBrowserApiUrl();
-  const searchParams = useSearchParams();
-  const [campaignOptions, setCampaignOptions] = useState<CampaignOption[]>([]);
-  const kind = searchParams.get("kind");
-  const kindLocked = kind === "pc" || kind === "npc";
-  const pageTitle = kind === "npc" ? "NPCs" : kind === "pc" ? "Fichas de jogador" : "Fichas";
-  const pageDescription =
-    kind === "npc"
-      ? "Mantenha apenas NPCs visíveis nessa tela."
-      : kind === "pc"
-        ? "Crie e edite só personagens jogáveis."
-        : "Crie personagens e NPCs vinculados a uma campanha.";
 
   useEffect(() => {
-    void (async () => {
-      const response = await fetch(`${apiUrl}/campaigns`, {
-        credentials: "include",
-      });
-      const data = await response.json();
-      setCampaignOptions(Array.isArray(data) ? data : []);
-    })();
+    void Promise.all([
+      apiFetch(`${apiUrl}/characters`),
+      apiFetch(`${apiUrl}/campaigns`),
+      apiFetch(`${apiUrl}/auth/me`),
+    ]).then(async ([charactersResponse, campaignsResponse, userResponse]) => {
+      if (charactersResponse.ok) setCharacters(await charactersResponse.json());
+      if (campaignsResponse.ok && userResponse.ok) {
+        const user = await userResponse.json() as AuthUser;
+        const campaigns = await campaignsResponse.json() as Campaign[];
+        const details = await Promise.all(campaigns.map(async (campaign) => {
+          const response = await apiFetch(`${apiUrl}/campaigns/${campaign.id}`);
+          return response.ok ? response.json() as Promise<Campaign> : campaign;
+        }));
+        setCanManageNpcs(details.some((campaign) =>
+          campaign.ownerUserId === user.id || campaign.members?.some((member) => member.userId === user.id && member.role === "gm"),
+        ));
+      }
+      setLoading(false);
+    });
   }, [apiUrl]);
 
-  return (
-    <div className="flex flex-1 flex-col gap-6 py-4">
-      <Link
-        href="/home"
-        className="inline-flex items-center gap-1 text-xs uppercase tracking-[0.2em] text-zinc-500 hover:text-zinc-300"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        Voltar
-      </Link>
-
-      <CrudPanel<Character>
-        title={pageTitle}
-        description={pageDescription}
-        endpoint="/characters"
-        filterItems={(item) => (kindLocked ? item.kind === kind : true)}
-        emptyValues={{
-          campaignId: "",
-          kind: kind === "npc" ? "npc" : "pc",
-          name: "",
-          description: "",
-          data: "{}",
-          imageAssetId: "",
-        }}
-        fields={[
-          {
-            name: "campaignId",
-            label: "Campanha",
-            type: "select",
-            options: campaignOptions.map((campaign) => ({
-              label: campaign.name,
-              value: campaign.id,
-            })),
-          },
-          {
-            name: "kind",
-            label: "Tipo",
-            type: "select",
-            visible: () => !kindLocked,
-            options: [
-              { label: "PC", value: "pc" },
-              { label: "NPC", value: "npc" },
-            ],
-          },
-          { name: "name", label: "Nome" },
-          { name: "description", label: "Descrição", type: "textarea" },
-          {
-            name: "data",
-            label: "Dados da ficha (JSON)",
-            type: "json",
-            placeholder: '{"nex":0,"attributes":{}}',
-          },
-          { name: "imageAssetId", label: "Image asset ID" },
-        ]}
-        itemLabel={(item) => item.name}
-        itemMeta={(item) => `${item.kind} · campanha ${item.campaignId.slice(0, 8)}`}
-        itemSubline={(item) => item.description || "Sem descrição"}
-        buildPayload={(values) => ({
-          campaignId: values.campaignId,
-          kind: kindLocked ? kind : values.kind,
-          name: values.name,
-          description: values.description,
-          data: values.data ? JSON.parse(values.data) : {},
-          imageAssetId: values.imageAssetId || null,
-        })}
-        mapItemToForm={(item) => ({
-          campaignId: item.campaignId ?? "",
-          kind: item.kind ?? "pc",
-          name: item.name ?? "",
-          description: item.description ?? "",
-          data: JSON.stringify(item.data ?? {}, null, 2),
-          imageAssetId: item.imageAssetId ?? "",
-        })}
-      />
+  return <div className="flex flex-1 flex-col gap-6 py-4">
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div><p className="text-xs uppercase tracking-[0.2em] text-red-500">{t("badge")}</p><h1 className="mt-1 font-serif text-3xl text-zinc-100">{t("title")}</h1><p className="mt-2 text-sm text-zinc-400">{t("description")}</p></div>
+      <div className="flex gap-2"><Link href="/characters/new" className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600">{t("createPc")}</Link>{canManageNpcs && <Link href="/characters/npc/new" className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-900">{t("createNpc")}</Link>}</div>
     </div>
-  );
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {loading ? <p className="text-sm text-zinc-500">{t("loading")}</p> : characters.map((character) => <Link key={character.id} href={`/characters/${character.id}`} className="rounded-xl border border-zinc-800 bg-zinc-950 p-5 transition hover:border-red-900"><div className="flex items-center justify-between"><span className="rounded-full border border-zinc-700 px-2 py-1 text-[10px] uppercase tracking-wider text-zinc-400">{character.kind === "pc" ? t("pc") : t("npc")}</span><span className="text-xs text-zinc-500">NEX {character.nex}%</span></div><h2 className="mt-4 font-serif text-xl text-zinc-100">{character.name}</h2><p className="mt-1 text-sm text-zinc-500">{character.sheetLabel ?? (character.campaignId ? t("campaignSheet") : t("unassigned"))}</p><p className="mt-4 text-xs uppercase tracking-widest text-zinc-600">{character.status}</p></Link>)}
+    </div>
+  </div>;
 }

@@ -11,6 +11,7 @@ import { ItemsModule } from './items/items.module';
 import { MediaModule } from './media/media.module';
 import { MonstersModule } from './monsters/monsters.module';
 import { UsersModule } from './users/users.module';
+import { RulesModule } from './rules/rules.module';
 import { validateEnvironment } from './config/environment';
 
 @Module({
@@ -30,6 +31,7 @@ import { validateEnvironment } from './config/environment';
     CharactersModule,
     MonstersModule,
     ItemsModule,
+    RulesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

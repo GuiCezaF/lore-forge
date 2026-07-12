@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
+  buildSessionCookieOptions,
   clearSessionCookieOptions,
 } from "@/lib/auth-cookies";
 import { getServerApiUrl } from "@/lib/api-url";
@@ -41,7 +42,11 @@ async function proxyRequest(request: NextRequest, path: string[]) {
   };
 
   if (request.method !== "GET" && request.method !== "HEAD") {
-    init.body = await request.text();
+    // Forward the raw stream rather than serialising it with `text()`.  The
+    // latter corrupts multipart boundaries, which made portrait uploads fail
+    // when the web app is proxying to a separately hosted API.
+    init.body = request.body;
+    (init as RequestInit & { duplex?: "half" }).duplex = "half";
   }
 
   const apiResponse = await fetch(targetUrl, init);
@@ -55,6 +60,31 @@ async function proxyRequest(request: NextRequest, path: string[]) {
     status: apiResponse.status,
     headers: responseHeaders,
   });
+
+  if (targetPath === "auth/refresh" && apiResponse.ok) {
+    const setCookie = apiResponse.headers.getSetCookie();
+    for (const cookie of setCookie) {
+      const [nameValue] = cookie.split(";");
+      const separator = nameValue.indexOf("=");
+      if (separator === -1) continue;
+      const name = nameValue.slice(0, separator);
+      const value = nameValue.slice(separator + 1);
+      if (name === ACCESS_TOKEN_COOKIE) {
+        response.cookies.set(
+          ACCESS_TOKEN_COOKIE,
+          value,
+          buildSessionCookieOptions(15 * 60),
+        );
+      }
+      if (name === REFRESH_TOKEN_COOKIE) {
+        response.cookies.set(
+          REFRESH_TOKEN_COOKIE,
+          value,
+          buildSessionCookieOptions(30 * 24 * 60 * 60),
+        );
+      }
+    }
+  }
 
   if (targetPath === "auth/logout" && apiResponse.status === 204) {
     const clearOptions = clearSessionCookieOptions();

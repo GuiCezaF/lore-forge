@@ -16,8 +16,91 @@ export type UserRole = 'user' | 'admin';
 export type UserPlan = 'free' | 'premium';
 export type CampaignMemberRole = 'gm' | 'player' | 'spectator';
 export type CharacterKind = 'pc' | 'npc';
+export type NpcMode = 'narrative' | 'threat';
+export type CharacterStatus = 'draft' | 'active' | 'archived';
+export type InvitationStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired';
 export type EntityScope = 'system' | 'user' | 'campaign';
 export type ItemKind = 'item' | 'document';
+export type RuleOptionKind = 'power' | 'ritual';
+
+/** Versioned, data-driven game rules. Character sheets pin `rulesetVersion`. */
+export const rulesets = pgTable(
+  'rulesets',
+  {
+    version: text('version').primaryKey(),
+    name: text('name').notNull(),
+    isActive: boolean('is_active').notNull().default(true),
+    minNex: integer('min_nex').notNull().default(5),
+    maxNex: integer('max_nex').notNull().default(99),
+    nexStep: integer('nex_step').notNull().default(5),
+    createdAt: timestamp('created_at', { mode: 'string', withTimezone: true }).notNull().defaultNow(),
+  },
+);
+
+export const ruleClasses = pgTable(
+  'rule_classes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    rulesetVersion: text('ruleset_version').notNull().references(() => rulesets.version, { onDelete: 'cascade' }),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+    baseHp: integer('base_hp').notNull(),
+    hpPerNex: integer('hp_per_nex').notNull(),
+    baseSan: integer('base_san').notNull(),
+    baseEp: integer('base_ep').notNull(),
+    trainedSkills: integer('trained_skills').notNull(),
+  },
+  (table) => ({ uniqueSlug: uniqueIndex('rule_classes_ruleset_slug_unique').on(table.rulesetVersion, table.slug) }),
+);
+
+export const rulePaths = pgTable(
+  'rule_paths',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    classId: uuid('class_id').notNull().references(() => ruleClasses.id, { onDelete: 'cascade' }),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+    minNex: integer('min_nex').notNull().default(10),
+  },
+  (table) => ({ uniqueSlug: uniqueIndex('rule_paths_class_slug_unique').on(table.classId, table.slug) }),
+);
+
+export const ruleOrigins = pgTable(
+  'rule_origins',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    rulesetVersion: text('ruleset_version').notNull().references(() => rulesets.version, { onDelete: 'cascade' }),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+  },
+  (table) => ({ uniqueSlug: uniqueIndex('rule_origins_ruleset_slug_unique').on(table.rulesetVersion, table.slug) }),
+);
+
+export const ruleSkills = pgTable(
+  'rule_skills',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    rulesetVersion: text('ruleset_version').notNull().references(() => rulesets.version, { onDelete: 'cascade' }),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+  },
+  (table) => ({ uniqueSlug: uniqueIndex('rule_skills_ruleset_slug_unique').on(table.rulesetVersion, table.slug) }),
+);
+
+export const ruleOptions = pgTable(
+  'rule_options',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    rulesetVersion: text('ruleset_version').notNull().references(() => rulesets.version, { onDelete: 'cascade' }),
+    kind: text('kind').notNull().$type<RuleOptionKind>(),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+    minNex: integer('min_nex').notNull().default(5),
+    maxRank: integer('max_rank').notNull().default(1),
+    requiredClassSlug: text('required_class_slug'),
+  },
+  (table) => ({ uniqueSlug: uniqueIndex('rule_options_ruleset_kind_slug_unique').on(table.rulesetVersion, table.kind, table.slug) }),
+);
 
 export const users = pgTable(
   'users',
@@ -165,15 +248,46 @@ export const characters = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     campaignId: uuid('campaign_id')
-      .notNull()
-      .references(() => campaigns.id, { onDelete: 'cascade' }),
+      .references(() => campaigns.id, { onDelete: 'set null' }),
     ownerUserId: uuid('owner_user_id').references(() => users.id, {
       onDelete: 'set null',
     }),
+    sourceCharacterId: uuid('source_character_id'),
     kind: text('kind').notNull().$type<CharacterKind>().default('pc'),
+    status: text('status').notNull().$type<CharacterStatus>().default('draft'),
+    npcMode: text('npc_mode').$type<NpcMode>(),
+    sheetLabel: text('sheet_label'),
+    rulesetVersion: text('ruleset_version')
+      .notNull()
+      .default('op-rpg-1.3')
+      .references(() => rulesets.version),
     name: text('name').notNull(),
-    description: text('description'),
-    data: jsonb('data').notNull().$type<Record<string, unknown>>().default({}),
+    concept: text('concept'),
+    gender: text('gender'),
+    age: integer('age'),
+    appearance: text('appearance'),
+    personality: text('personality'),
+    history: text('history'),
+    objective: text('objective'),
+    playerNotes: text('player_notes'),
+    origin: text('origin'),
+    characterClass: text('character_class'),
+    path: text('path'),
+    nex: integer('nex').notNull().default(5),
+    agility: integer('agility').notNull().default(1),
+    strength: integer('strength').notNull().default(1),
+    intellect: integer('intellect').notNull().default(1),
+    presence: integer('presence').notNull().default(1),
+    vigor: integer('vigor').notNull().default(1),
+    maxHp: integer('max_hp'),
+    maxSan: integer('max_san'),
+    maxEp: integer('max_ep'),
+    epLimit: integer('ep_limit'),
+    defense: integer('defense'),
+    dodge: integer('dodge'),
+    block: integer('block'),
+    movement: integer('movement'),
+    carryCapacity: integer('carry_capacity'),
     imageAssetId: uuid('image_asset_id').references(() => mediaAssets.id, {
       onDelete: 'set null',
     }),
@@ -189,8 +303,164 @@ export const characters = pgTable(
   (table) => ({
     campaignIdx: index('characters_campaign_id_idx').on(table.campaignId),
     ownerIdx: index('characters_owner_user_id_idx').on(table.ownerUserId),
+    sourceIdx: index('characters_source_character_id_idx').on(
+      table.sourceCharacterId,
+    ),
     frozenIdx: index('characters_frozen_at_idx').on(table.frozenAt),
     deletedIdx: index('characters_deleted_at_idx').on(table.deletedAt),
+  }),
+);
+
+export const characterSkills = pgTable(
+  'character_skills',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    degree: text('degree').notNull().default('trained'),
+  },
+  (table) => ({ characterIdx: index('character_skills_character_id_idx').on(table.characterId) }),
+);
+
+export const characterSelections = pgTable(
+  'character_selections',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    category: text('category').notNull(),
+    name: text('name').notNull(),
+    rank: integer('rank').notNull().default(1),
+  },
+  (table) => ({ characterIdx: index('character_selections_character_id_idx').on(table.characterId) }),
+);
+
+/** Typed, campaign-scoped NPC threat stat block. Player Characters never use
+ * these tables; their permanent build remains in `characters`. */
+export const npcStatBlocks = pgTable(
+  'npc_stat_blocks',
+  {
+    characterId: uuid('character_id').primaryKey().references(() => characters.id, { onDelete: 'cascade' }),
+    threatLevel: integer('threat_level').notNull().default(0),
+    hp: integer('hp').notNull().default(1),
+    defense: integer('defense').notNull().default(10),
+    fortitude: integer('fortitude').notNull().default(0),
+    reflex: integer('reflex').notNull().default(0),
+    will: integer('will').notNull().default(0),
+    perception: integer('perception').notNull().default(0),
+    movement: integer('movement').notNull().default(9),
+    size: text('size').notNull().default('medium'),
+    senses: text('senses'),
+    notes: text('notes'),
+    updatedAt: timestamp('updated_at', { mode: 'string', withTimezone: true }).notNull().defaultNow(),
+  },
+);
+
+export const npcAttacks = pgTable(
+  'npc_attacks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    test: text('test'),
+    damage: text('damage'),
+    range: text('range'),
+    critical: text('critical'),
+    effect: text('effect'),
+    sortOrder: integer('sort_order').notNull().default(0),
+  },
+  (table) => ({ characterIdx: index('npc_attacks_character_id_idx').on(table.characterId) }),
+);
+
+export const npcResistances = pgTable(
+  'npc_resistances',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+    damageType: text('damage_type').notNull(),
+    value: integer('value').notNull().default(0),
+    kind: text('kind').notNull().default('resistance'),
+  },
+  (table) => ({ characterIdx: index('npc_resistances_character_id_idx').on(table.characterId) }),
+);
+
+export const npcAbilities = pgTable(
+  'npc_abilities',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description').notNull(),
+    actionCost: text('action_cost'),
+    sortOrder: integer('sort_order').notNull().default(0),
+  },
+  (table) => ({ characterIdx: index('npc_abilities_character_id_idx').on(table.characterId) }),
+);
+
+export const campaignCharacterStates = pgTable(
+  'campaign_character_states',
+  {
+    characterId: uuid('character_id')
+      .primaryKey()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    currentHp: integer('current_hp').notNull().default(0),
+    currentSan: integer('current_san').notNull().default(0),
+    currentEp: integer('current_ep').notNull().default(0),
+    conditions: text('conditions').notNull().default(''),
+    temporaryEffects: text('temporary_effects').notNull().default(''),
+    gmNotes: text('gm_notes'),
+    updatedAt: timestamp('updated_at', { mode: 'string', withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+);
+
+export const characterInventory = pgTable(
+  'character_inventory',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    itemId: uuid('item_id').references(() => items.id, { onDelete: 'set null' }),
+    name: text('name').notNull(),
+    quantity: integer('quantity').notNull().default(1),
+    isEquipped: boolean('is_equipped').notNull().default(false),
+    notes: text('notes'),
+    addedByUserId: uuid('added_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { mode: 'string', withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({ characterIdx: index('character_inventory_character_id_idx').on(table.characterId) }),
+);
+
+export const campaignInvitations = pgTable(
+  'campaign_invitations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    campaignId: uuid('campaign_id')
+      .notNull()
+      .references(() => campaigns.id, { onDelete: 'cascade' }),
+    invitedUserId: uuid('invited_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    invitedByUserId: uuid('invited_by_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().$type<InvitationStatus>().default('pending'),
+    expiresAt: timestamp('expires_at', { mode: 'string', withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { mode: 'string', withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    resolvedAt: timestamp('resolved_at', { mode: 'string', withTimezone: true }),
+  },
+  (table) => ({
+    campaignIdx: index('campaign_invitations_campaign_id_idx').on(table.campaignId),
+    invitedUserIdx: index('campaign_invitations_invited_user_id_idx').on(table.invitedUserId),
   }),
 );
 

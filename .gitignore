@@ -150,3 +150,6 @@ vite.config.ts.timestamp-*
 .continue/
 .vercel
 .env*
+
+tmp/
+.scratch/

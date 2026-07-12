@@ -250,7 +250,6 @@ Never:
 
 - Use official logos or visual identity.
 - Include copyrighted canon content.
-- Include official texts, images or pre-filled official material.
 
 ---
 
