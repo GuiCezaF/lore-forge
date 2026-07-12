@@ -264,3 +264,17 @@ When solving a task:
 5. Consider edge cases, performance, security and maintainability.
 6. Do not simplify by removing important functionality.
 7. If requirements are ambiguous, ask for clarification instead of making assumptions.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues for `GuiCezaF/lore-forge`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five default triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository using root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.

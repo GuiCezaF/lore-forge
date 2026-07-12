@@ -37,7 +37,7 @@ describe("api-url", () => {
   });
 
   it("flags localhost API URL in production", () => {
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string | undefined>).NODE_ENV = "production";
     delete process.env.API_URL;
     delete process.env.NEXT_PUBLIC_API_URL;
 

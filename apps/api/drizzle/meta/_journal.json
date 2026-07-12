@@ -15,6 +15,20 @@
       "when": 1783879200000,
       "tag": "0001_ruleset_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783892789390,
+      "tag": "0002_spotty_firelord",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783893299890,
+      "tag": "0003_catalog-skill-distribution",
+      "breakpoints": true
     }
   ]
 }

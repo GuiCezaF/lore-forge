@@ -1,0 +1,3 @@
+# Campaign characters remain attached
+
+A player may have one active character in a campaign at a time. An attached character can never be detached, moved, or shared across campaigns, and its owner can see the campaign name on the sheet. Reuse in another campaign requires an explicit copy of Permanent Sheet Data; Campaign State, rituals, inventory, and history start fresh. When its player leaves, the original becomes inactive and can be reactivated if that player returns; the GM may instead retire or mark it deceased, archiving it permanently. This preserves campaign history while allowing a returning player to reactivate the prior character or attach a replacement without rewriting the past.

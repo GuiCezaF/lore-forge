@@ -2,7 +2,6 @@
 
 import { Eye, ShieldAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { LocaleSwitcher } from "./locale-switcher";
 
 type LandingHeroProps = {
   authUrl: string;
@@ -59,10 +58,6 @@ export function LandingHero({
     <section className="relative overflow-hidden rounded-3xl border border-red-950/40 bg-zinc-950 p-8 shadow-2xl shadow-black/80 sm:p-12 max-w-lg w-full mx-auto">
       <div className="absolute -top-40 -left-40 h-80 w-80 rounded-full bg-red-900/10 blur-[100px] pointer-events-none" />
       <div className="absolute -bottom-40 -right-40 h-80 w-80 rounded-full bg-red-950/15 blur-[100px] pointer-events-none" />
-
-      <div className="absolute top-4 right-4">
-        <LocaleSwitcher variant="landing" />
-      </div>
 
       <div className="relative flex flex-col items-center text-center gap-8">
         <div className="inline-flex items-center gap-2 rounded-full border border-red-900/30 bg-red-950/10 px-4 py-1.5 text-xs font-semibold tracking-wider text-red-500 uppercase">

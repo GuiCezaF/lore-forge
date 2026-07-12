@@ -47,8 +47,10 @@ export const ruleClasses = pgTable(
     baseHp: integer('base_hp').notNull(),
     hpPerNex: integer('hp_per_nex').notNull(),
     baseSan: integer('base_san').notNull(),
+    sanPerNex: integer('san_per_nex').notNull(),
     baseEp: integer('base_ep').notNull(),
     trainedSkills: integer('trained_skills').notNull(),
+    trainingUpgradeBase: integer('training_upgrade_base').notNull(),
   },
   (table) => ({ uniqueSlug: uniqueIndex('rule_classes_ruleset_slug_unique').on(table.rulesetVersion, table.slug) }),
 );
@@ -76,6 +78,30 @@ export const ruleOrigins = pgTable(
   (table) => ({ uniqueSlug: uniqueIndex('rule_origins_ruleset_slug_unique').on(table.rulesetVersion, table.slug) }),
 );
 
+/** Skills granted automatically by an origin. */
+export const ruleOriginSkillGrants = pgTable(
+  'rule_origin_skill_grants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    originId: uuid('origin_id').notNull().references(() => ruleOrigins.id, { onDelete: 'cascade' }),
+    skillSlug: text('skill_slug').notNull(),
+  },
+  (table) => ({ uniqueSkill: uniqueIndex('rule_origin_skill_grants_origin_skill_unique').on(table.originId, table.skillSlug) }),
+);
+
+/** A selectable origin skill group, such as Amnesic's two chosen skills. */
+export const ruleOriginSkillChoices = pgTable(
+  'rule_origin_skill_choices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    originId: uuid('origin_id').notNull().references(() => ruleOrigins.id, { onDelete: 'cascade' }),
+    groupSlug: text('group_slug').notNull(),
+    skillSlug: text('skill_slug').notNull(),
+    selectionCount: integer('selection_count').notNull(),
+  },
+  (table) => ({ uniqueSkill: uniqueIndex('rule_origin_skill_choices_origin_group_skill_unique').on(table.originId, table.groupSlug, table.skillSlug) }),
+);
+
 export const ruleSkills = pgTable(
   'rule_skills',
   {
@@ -85,6 +111,30 @@ export const ruleSkills = pgTable(
     name: text('name').notNull(),
   },
   (table) => ({ uniqueSlug: uniqueIndex('rule_skills_ruleset_slug_unique').on(table.rulesetVersion, table.slug) }),
+);
+
+/** Skills granted automatically by a class, such as Ocultism and Willpower. */
+export const ruleClassSkillGrants = pgTable(
+  'rule_class_skill_grants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    classId: uuid('class_id').notNull().references(() => ruleClasses.id, { onDelete: 'cascade' }),
+    skillSlug: text('skill_slug').notNull(),
+  },
+  (table) => ({ uniqueSkill: uniqueIndex('rule_class_skill_grants_class_skill_unique').on(table.classId, table.skillSlug) }),
+);
+
+/** A selectable class skill group, such as Combatant's weapon training. */
+export const ruleClassSkillChoices = pgTable(
+  'rule_class_skill_choices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    classId: uuid('class_id').notNull().references(() => ruleClasses.id, { onDelete: 'cascade' }),
+    groupSlug: text('group_slug').notNull(),
+    skillSlug: text('skill_slug').notNull(),
+    selectionCount: integer('selection_count').notNull(),
+  },
+  (table) => ({ uniqueSkill: uniqueIndex('rule_class_skill_choices_class_group_skill_unique').on(table.classId, table.groupSlug, table.skillSlug) }),
 );
 
 export const ruleOptions = pgTable(

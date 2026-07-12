@@ -1,12 +1,8 @@
 import { screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { LandingHero } from "./landing-hero";
 import { renderWithIntl } from "../../test/render-with-intl";
 import ptBRMessages from "../../messages/pt-BR.json";
-
-vi.mock("./locale-switcher", () => ({
-  LocaleSwitcher: () => null,
-}));
 
 describe("LandingHero", () => {
   it("renders the product message and call to action in pt-BR", () => {
