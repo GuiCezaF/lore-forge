@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, isNull, or } from 'drizzle-orm';
+import { and, asc, eq, isNull, or } from 'drizzle-orm';
 import { CampaignsService } from '../campaigns/campaigns.service';
 import { DATABASE } from '../database/database.constants';
 import type { Database } from '../database/database.types';
@@ -50,6 +50,8 @@ export interface CharacterDto {
   path: string | null;
   nex: number;
   attributes: { agility: number; strength: number; intellect: number; presence: number; vigor: number };
+  skills: Array<{ name: string; degree: string }>;
+  powers: Array<{ name: string; rank: number }>;
   derived: { maxHp: number | null; maxSan: number | null; maxEp: number | null; epLimit: number | null; defense: number | null; dodge: number | null; block: number | null; movement: number | null; carryCapacity: number | null };
   imageAssetId: string | null;
   createdAt: string;
@@ -137,6 +139,23 @@ export class CharactersService {
     return accessible.map((row) => this.toDto(row, row.ownerUserId === userId));
   }
 
+  async listNpcsForGm(userId: string): Promise<CharacterDto[]> {
+    const rows = await this.db.select().from(characters).where(
+      and(eq(characters.kind, 'npc'), isNull(characters.deletedAt)),
+    );
+    const manageable: typeof rows = [];
+    for (const row of rows) {
+      if (!row.campaignId) continue;
+      try {
+        await this.ensureManager(userId, row.campaignId);
+        manageable.push(row);
+      } catch (error) {
+        if (!(error instanceof ForbiddenException) && !(error instanceof NotFoundException)) throw error;
+      }
+    }
+    return manageable.map((row) => this.toDto(row, row.ownerUserId === userId));
+  }
+
   async createPlayerCharacter(userId: string, body: CharacterInput): Promise<CharacterDto> {
     this.ensureName(body.name);
     await this.ensureOwnedImageAsset(userId, body.imageAssetId);
@@ -220,7 +239,7 @@ export class CharactersService {
 
   async getCharacter(userId: string, characterId: string): Promise<CharacterDto> {
     const row = await this.getAccessibleCharacter(userId, characterId);
-    return this.toDto(row, row.ownerUserId === userId);
+    return this.getCharacterDto(row, row.ownerUserId === userId);
   }
 
   async updateCharacter(userId: string, characterId: string, body: CharacterInput): Promise<CharacterDto> {
@@ -520,6 +539,27 @@ export class CharactersService {
   }
 
   private toDto(row: typeof characters.$inferSelect, includeOwnerMetadata = true): CharacterDto {
-    return { id: row.id, campaignId: row.campaignId ?? null, ownerUserId: row.ownerUserId ?? null, sourceCharacterId: includeOwnerMetadata ? row.sourceCharacterId ?? null : null, kind: row.kind, status: row.status, npcMode: row.npcMode ?? null, sheetLabel: includeOwnerMetadata ? row.sheetLabel ?? null : null, rulesetVersion: row.rulesetVersion, name: row.name, concept: row.concept ?? null, origin: row.origin ?? null, characterClass: row.characterClass ?? null, path: row.path ?? null, nex: row.nex, attributes: { agility: row.agility, strength: row.strength, intellect: row.intellect, presence: row.presence, vigor: row.vigor }, derived: { maxHp: row.maxHp ?? null, maxSan: row.maxSan ?? null, maxEp: row.maxEp ?? null, epLimit: row.epLimit ?? null, defense: row.defense ?? null, dodge: row.dodge ?? null, block: row.block ?? null, movement: row.movement ?? null, carryCapacity: row.carryCapacity ?? null }, imageAssetId: row.imageAssetId ?? null, createdAt: row.createdAt, updatedAt: row.updatedAt };
+    return { id: row.id, campaignId: row.campaignId ?? null, ownerUserId: row.ownerUserId ?? null, sourceCharacterId: includeOwnerMetadata ? row.sourceCharacterId ?? null : null, kind: row.kind, status: row.status, npcMode: row.npcMode ?? null, sheetLabel: includeOwnerMetadata ? row.sheetLabel ?? null : null, rulesetVersion: row.rulesetVersion, name: row.name, concept: row.concept ?? null, origin: row.origin ?? null, characterClass: row.characterClass ?? null, path: row.path ?? null, nex: row.nex, attributes: { agility: row.agility, strength: row.strength, intellect: row.intellect, presence: row.presence, vigor: row.vigor }, skills: [], powers: [], derived: { maxHp: row.maxHp ?? null, maxSan: row.maxSan ?? null, maxEp: row.maxEp ?? null, epLimit: row.epLimit ?? null, defense: row.defense ?? null, dodge: row.dodge ?? null, block: row.block ?? null, movement: row.movement ?? null, carryCapacity: row.carryCapacity ?? null }, imageAssetId: row.imageAssetId ?? null, createdAt: row.createdAt, updatedAt: row.updatedAt };
+  }
+
+  private async getCharacterDto(row: typeof characters.$inferSelect, includeOwnerMetadata: boolean): Promise<CharacterDto> {
+    const [skills, selections] = await Promise.all([
+      this.db.select({ name: characterSkills.name, degree: characterSkills.degree })
+        .from(characterSkills)
+        .where(eq(characterSkills.characterId, row.id))
+        .orderBy(asc(characterSkills.name)),
+      this.db.select({ category: characterSelections.category, name: characterSelections.name, rank: characterSelections.rank })
+        .from(characterSelections)
+        .where(eq(characterSelections.characterId, row.id))
+        .orderBy(asc(characterSelections.name)),
+    ]);
+    const dto = this.toDto(row, includeOwnerMetadata);
+    return {
+      ...dto,
+      skills,
+      powers: selections
+        .filter((selection) => selection.category === 'power')
+        .map(({ name, rank }) => ({ name, rank })),
+    };
   }
 }

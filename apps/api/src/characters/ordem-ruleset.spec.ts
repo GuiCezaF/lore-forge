@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { calculateDerived, getAttributeBudget, validateBuild } from './ordem-ruleset';
+import { calculateDerived, getAttributeBudget, getClassPowerSlotCount, validateBuild } from './ordem-ruleset';
 import type { RulesetCatalog } from '../rules/rules.service';
 
 const allSkills = [
@@ -33,12 +33,26 @@ const catalog: RulesetCatalog = {
     },
   ],
   skills: allSkills.map((slug) => ({ slug, name: slug })),
-  powers: [{ slug: 'power', name: 'Power', minNex: 5, maxRank: 1, requiredClassSlug: null }],
+  powers: Array.from({ length: 6 }, (_, index) => ({
+    slug: `power-${index + 1}`,
+    name: `Power ${index + 1}`,
+    minNex: 5,
+    maxRank: 1,
+    requiredClassSlug: null,
+  })),
   rituals: [{ slug: 'ritual', name: 'Ritual', minNex: 25, maxRank: 2, requiredClassSlug: 'ocultista' }],
 };
 
 function buildSkills(names: string[], degree: 'trained' | 'veteran' | 'expert' = 'trained') {
   return names.map((name) => ({ name, degree }));
+}
+
+function buildClassPowerSelections(nex: number) {
+  return Array.from({ length: Math.floor(nex / 15) }, (_, index) => ({
+    category: 'power' as const,
+    name: `power-${index + 1}`,
+    rank: 1,
+  }));
 }
 
 function valid(classSlug: 'combatente' | 'especialista' | 'ocultista' = 'ocultista') {
@@ -52,7 +66,10 @@ function valid(classSlug: 'combatente' | 'especialista' | 'ocultista' = 'ocultis
     origin: 'origin', characterClass: classSlug, path: pathByClass[classSlug], nex: 25,
     attributes: { agility: 3, strength: 2, intellect: 2, presence: 2, vigor: 1 },
     skills: buildSkills(skillsByClass[classSlug]),
-    selections: classSlug === 'ocultista' ? [{ category: 'ritual' as const, name: 'ritual', rank: 2 }] : [],
+    selections: [
+      ...buildClassPowerSelections(25),
+      ...(classSlug === 'ocultista' ? [{ category: 'ritual' as const, name: 'ritual', rank: 2 }] : []),
+    ],
     isFinal: true,
   };
 }
@@ -154,6 +171,7 @@ describe('Ordem Paranormal 1.3 rules', () => {
     input.nex = 99;
     input.attributes = { agility: 3, strength: 3, intellect: 3, presence: 2, vigor: 2 };
     input.skills = buildSkills(['origem-1', 'origem-2', 'ocultismo', 'vontade', 'acrobacia', 'artes', 'atletismo', 'atualidades', 'ciencia', 'crime']);
+    input.selections = [...buildClassPowerSelections(99), { category: 'ritual', name: 'ritual', rank: 2 }];
     expect(() => validateBuild(catalog, input)).not.toThrow();
     expect(calculateDerived(catalog, 'ocultista', 99, input.attributes)).toMatchObject({ epLimit: 20 });
   });
@@ -174,6 +192,7 @@ describe('Ordem Paranormal 1.3 rules', () => {
       ? { agility: 3, strength: 2, intellect: 2, presence: 2, vigor: 2 }
       : { agility: 2, strength: 2, intellect: 2, presence: 2, vigor: 2 };
     input.skills = buildSkills(input.skills.map((skill) => skill.name));
+    input.selections = buildClassPowerSelections(nex);
     input.skills[0].degree = degree;
     const shouldPass = (degree === 'veteran' && nex >= 35) || (degree === 'expert' && nex >= 70);
     if (shouldPass) expect(() => validateBuild(catalog, input)).not.toThrow();
@@ -192,5 +211,20 @@ describe('Ordem Paranormal 1.3 rules', () => {
     const input = valid();
     input.nex = 20;
     expect(() => validateBuild(catalog, input)).toThrow(BadRequestException);
+  });
+
+  it.each([
+    [5, 0], [10, 0], [15, 1], [25, 1], [30, 2], [90, 6], [99, 6],
+  ])('provides %i class power slots at NEX %i%%', (nex, expectedSlots) => {
+    expect(getClassPowerSlotCount(catalog, nex)).toBe(expectedSlots);
+  });
+
+  it('requires exactly the class power slots unlocked by NEX', () => {
+    const input = valid('combatente');
+    input.selections = [];
+    expect(() => validateBuild(catalog, input)).toThrow('Esta ficha deve selecionar exatamente 1 poder de classe para NEX 25%');
+
+    input.selections = [...buildClassPowerSelections(25), { category: 'power', name: 'power-2', rank: 1 }];
+    expect(() => validateBuild(catalog, input)).toThrow('Esta ficha deve selecionar exatamente 1 poder de classe para NEX 25%');
   });
 });

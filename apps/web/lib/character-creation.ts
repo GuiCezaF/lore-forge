@@ -18,6 +18,49 @@ export type CharacterAttributes = {
   vigor: number;
 };
 
+export type SkillDegree = "trained" | "veteran" | "expert";
+
+export type CharacterSkill = {
+  name: string;
+  degree: SkillDegree;
+};
+
+export type SkillChoiceGroup = {
+  slug: string;
+  selectionCount: number;
+  skills: string[];
+};
+
+export type CharacterOrigin = {
+  slug: string;
+  name: string;
+  grantedSkills: string[];
+  skillChoices: SkillChoiceGroup[];
+};
+
+export type CharacterClass = {
+  slug: string;
+  name: string;
+  paths: CharacterPath[];
+  trainedSkills: number;
+  trainingUpgradeBase: number;
+  grantedSkills: string[];
+  skillChoices: SkillChoiceGroup[];
+};
+
+export type RulesetSkill = {
+  slug: string;
+  name: string;
+};
+
+export type CharacterPower = {
+  slug: string;
+  name: string;
+  minNex: number;
+  maxRank: number;
+  requiredClassSlug: string | null;
+};
+
 const ATTRIBUTE_BUDGET_BASE = 9;
 const ATTRIBUTE_NEX_THRESHOLDS = [20, 50, 80, 95] as const;
 const ATTRIBUTE_CAP_BELOW_20_NEX = 3;
@@ -73,4 +116,44 @@ export function getNexOptions(rules: NexRules | undefined): number[] {
 
 export function getAvailablePaths(paths: CharacterPath[], nex: number): CharacterPath[] {
   return paths.filter((path) => nex >= path.minNex);
+}
+
+export function getGrantedSkillNames(origin: CharacterOrigin | undefined, characterClass: CharacterClass | undefined): string[] {
+  return [...new Set([...(origin?.grantedSkills ?? []), ...(characterClass?.grantedSkills ?? [])])];
+}
+
+export function getSkillChoiceCount(origin: CharacterOrigin | undefined, characterClass: CharacterClass | undefined): number {
+  return [...(origin?.skillChoices ?? []), ...(characterClass?.skillChoices ?? [])]
+    .reduce((total, group) => total + group.selectionCount, 0);
+}
+
+export function getRequiredSkillCount(
+  origin: CharacterOrigin | undefined,
+  characterClass: CharacterClass | undefined,
+  intellect: number,
+): number {
+  if (!characterClass) return 0;
+
+  return getGrantedSkillNames(origin, characterClass).length
+    + getSkillChoiceCount(origin, characterClass)
+    + characterClass.trainedSkills
+    + Math.max(0, intellect);
+}
+
+export function getTrainingUpgradeLimit(characterClass: CharacterClass | undefined, intellect: number): number {
+  if (!characterClass) return 0;
+
+  return characterClass.trainingUpgradeBase + Math.max(0, intellect);
+}
+
+export function getTrainingUpgradeCount(skills: CharacterSkill[]): number {
+  return skills.reduce((total, skill) => total + (skill.degree === "expert" ? 2 : skill.degree === "veteran" ? 1 : 0), 0);
+}
+
+export function getAvailablePowers(powers: CharacterPower[], nex: number, classSlug: string): CharacterPower[] {
+  return powers.filter((power) => power.minNex <= nex && (!power.requiredClassSlug || power.requiredClassSlug === classSlug));
+}
+
+export function getPowerSelectionLimit(nex: number): number {
+  return Math.max(0, Math.floor(nex / 15));
 }
