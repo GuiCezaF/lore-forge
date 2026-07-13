@@ -12,6 +12,7 @@ const MAX_ATTRIBUTE = 5;
 const INITIAL_ATTRIBUTE_TOTAL = 9;
 const ATTRIBUTE_NEX_BONUSES = [20, 50, 80, 95] as const;
 const INITIAL_ATTRIBUTE_VALUE_CAP = 3;
+const CLASS_POWER_NEX_INTERVAL = 15;
 const ATTRIBUTE_LABELS: Record<keyof CharacterAttributes, string> = {
   agility: 'Agilidade',
   strength: 'Força',
@@ -115,6 +116,11 @@ export function getMaxAttributeValue(catalog: RulesetCatalog, nex: number): numb
   return Math.min(MAX_ATTRIBUTE, INITIAL_ATTRIBUTE_VALUE_CAP + ATTRIBUTE_NEX_BONUSES.filter((threshold) => nex >= threshold).length);
 }
 
+export function getClassPowerSlotCount(catalog: RulesetCatalog, nex: number): number {
+  validateNex(catalog, nex);
+  return Math.floor(nex / CLASS_POWER_NEX_INTERVAL);
+}
+
 function getAttributeTotal(attributes: CharacterAttributes): number {
   return Object.values(attributes).reduce((total, value) => total + value, 0);
 }
@@ -181,6 +187,7 @@ function validateSkillChoiceGroups(
 
 function validateSelections(catalog: RulesetCatalog, selections: CharacterSelectionInput[], nex: number, classSlug: string): void {
   const selected = new Set<string>();
+  let classPowerCount = 0;
   for (const selection of selections) {
     if (selection.category !== 'power' && selection.category !== 'ritual') {
       throw new BadRequestException('A categoria da seleção deve ser poder ou ritual');
@@ -190,7 +197,13 @@ function validateSelections(catalog: RulesetCatalog, selections: CharacterSelect
     if (!option || option.minNex > nex || (option.requiredClassSlug && option.requiredClassSlug !== classSlug)) throw new BadRequestException(`A seleção não está disponível: ${selection.name}`);
     const key = `${selection.category}:${selection.name}`;
     if (selected.has(key)) throw new BadRequestException(`Uma seleção só pode ser escolhida uma vez: ${selection.name}`);
-    selected.add(key); const rank = selection.rank ?? 1;
+    selected.add(key);
+    if (selection.category === 'power') classPowerCount += 1;
+    const rank = selection.rank ?? 1;
     if (!Number.isInteger(rank) || rank < 1 || rank > option.maxRank) throw new BadRequestException('O grau da seleção não está disponível');
+  }
+  const classPowerSlots = getClassPowerSlotCount(catalog, nex);
+  if (classPowerCount !== classPowerSlots) {
+    throw new BadRequestException(`Esta ficha deve selecionar exatamente ${classPowerSlots} poder${classPowerSlots === 1 ? '' : 'es'} de classe para NEX ${nex}%`);
   }
 }

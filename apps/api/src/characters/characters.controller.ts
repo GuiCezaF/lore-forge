@@ -33,6 +33,15 @@ export class CharactersController {
     return this.charactersService.listMyCharacters(user.id);
   }
 
+  @Get('npcs')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Lista NPCs das campanhas administradas pelo Mestre' })
+  @ApiOkResponse({ description: 'NPCs gerenciáveis' })
+  listNpcs(@CurrentUser() user: AuthUser) {
+    return this.charactersService.listNpcsForGm(user.id);
+  }
+
   @Get('ruleset')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
