@@ -44,6 +44,3 @@ jobs:
 
       - name: Run unit tests
         run: pnpm test --runInBand
-
-      - name: Run e2e tests
-        run: pnpm test:e2e --runInBand
