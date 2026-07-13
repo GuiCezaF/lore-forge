@@ -97,7 +97,7 @@ export default function ItemsPage() {
             type: "json",
             placeholder: '{"raridade":"comum"}',
           },
-          { name: "imageAssetId", label: "Image asset ID" },
+          { name: "imageAssetId", label: "ID do recurso de imagem" },
         ]}
         itemLabel={(item) => item.name}
         itemMeta={(item) => `${item.kind} · ${item.scope}`}

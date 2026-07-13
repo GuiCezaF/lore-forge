@@ -42,6 +42,26 @@ interface AddMemberBody {
 export class CampaignsController {
   constructor(private readonly campaignsService: CampaignsService) {}
 
+  // Static invitation routes must be registered before `:campaignId`, or an
+  // Express router can interpret "invitations" as a campaign id.
+  @Get('invitations/mine')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  listInvitations(@CurrentUser() user: AuthUser) {
+    return this.campaignsService.listMyInvitations(user.id);
+  }
+
+  @Post('invitations/:invitationId/respond')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async respond(
+    @CurrentUser() user: AuthUser,
+    @Param('invitationId') invitationId: string,
+    @Body() body: { accepted: boolean; characterId?: string; newCharacter?: { name?: string; sheetLabel?: string } },
+  ): Promise<void> {
+    await this.campaignsService.respondToInvitation(user.id, invitationId, body.accepted, body.characterId, body.newCharacter);
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -118,5 +138,37 @@ export class CampaignsController {
     @Param('memberUserId') memberUserId: string,
   ): Promise<void> {
     await this.campaignsService.removeMember(user.id, campaignId, memberUserId);
+  }
+
+  @Post(':campaignId/invitations')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  invite(@CurrentUser() user: AuthUser, @Param('campaignId') campaignId: string, @Body() body: { shortCode: string }) {
+    return this.campaignsService.invitePlayer(user.id, campaignId, body.shortCode);
+  }
+
+  @Get(':campaignId/invitations')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  listCampaignInvitations(@CurrentUser() user: AuthUser, @Param('campaignId') campaignId: string) {
+    return this.campaignsService.listCampaignInvitations(user.id, campaignId);
+  }
+
+  @Delete(':campaignId/invitations/:invitationId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async cancelInvitation(
+    @CurrentUser() user: AuthUser,
+    @Param('campaignId') campaignId: string,
+    @Param('invitationId') invitationId: string,
+  ): Promise<void> {
+    await this.campaignsService.cancelInvitation(user.id, campaignId, invitationId);
+  }
+
+  @Delete(':campaignId/membership')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async leave(@CurrentUser() user: AuthUser, @Param('campaignId') campaignId: string): Promise<void> {
+    await this.campaignsService.leaveCampaign(user.id, campaignId);
   }
 }

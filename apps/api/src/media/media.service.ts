@@ -1,5 +1,6 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -8,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { getEnvironment } from '../config/environment';
 import { DATABASE } from '../database/database.constants';
 import type { Database } from '../database/database.types';
-import { mediaAssets } from '../database/schema';
+import { campaigns, characters, items, mediaAssets, monsters } from '../database/schema';
 import { eq } from 'drizzle-orm';
 
 export interface UploadedAsset {
@@ -120,5 +121,56 @@ export class MediaService {
       mimeType: asset.mimeType,
       fileName: asset.fileName,
     };
+  }
+
+  async deleteImage(userId: string, assetId: string): Promise<void> {
+    const [asset] = await this.db
+      .select()
+      .from(mediaAssets)
+      .where(eq(mediaAssets.id, assetId));
+
+    if (!asset || asset.deletedAt) {
+      throw new NotFoundException('Asset not found');
+    }
+    if (asset.ownerUserId !== userId) {
+      throw new NotFoundException('Asset not found');
+    }
+
+    if (await this.hasReferences(assetId)) {
+      throw new BadRequestException('Asset is still in use; update or remove its record first');
+    }
+
+    await this.s3Client.send(
+      new DeleteObjectCommand({ Bucket: asset.bucket, Key: asset.storageKey }),
+    );
+    await this.db
+      .update(mediaAssets)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(eq(mediaAssets.id, assetId));
+  }
+
+  /**
+   * Release an owner-uploaded portrait only after the record which stopped
+   * referencing it has been saved.  Copies can legitimately share a portrait,
+   * so deleting an asset merely because one sheet replaced it would leave the
+   * other sheet broken.
+   */
+  async releaseImageIfUnreferenced(userId: string, assetId: string | null | undefined): Promise<void> {
+    if (!assetId) return;
+    const [asset] = await this.db.select().from(mediaAssets).where(eq(mediaAssets.id, assetId));
+    if (!asset || asset.deletedAt || asset.ownerUserId !== userId) return;
+    if (await this.hasReferences(assetId)) return;
+    await this.s3Client.send(new DeleteObjectCommand({ Bucket: asset.bucket, Key: asset.storageKey }));
+    await this.db.update(mediaAssets).set({ deletedAt: new Date().toISOString() }).where(eq(mediaAssets.id, assetId));
+  }
+
+  private async hasReferences(assetId: string): Promise<boolean> {
+    const [characterReference, itemReference, monsterReference, campaignReference] = await Promise.all([
+      this.db.select({ id: characters.id }).from(characters).where(eq(characters.imageAssetId, assetId)).limit(1),
+      this.db.select({ id: items.id }).from(items).where(eq(items.imageAssetId, assetId)).limit(1),
+      this.db.select({ id: monsters.id }).from(monsters).where(eq(monsters.imageAssetId, assetId)).limit(1),
+      this.db.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.coverImageAssetId, assetId)).limit(1),
+    ]);
+    return Boolean(characterReference.length || itemReference.length || monsterReference.length || campaignReference.length);
   }
 }

@@ -37,7 +37,7 @@ const actions: Array<{
     icon: BookOpenText,
   },
   {
-    href: "/characters?kind=npc",
+    href: "/mestre/npcs",
     label: "NPCs",
     title: "Elenco da campanha",
     description: "Gerencie apenas NPCs da mesa, com criação e edição no mesmo fluxo.",
