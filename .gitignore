@@ -153,3 +153,6 @@ vite.config.ts.timestamp-*
 
 tmp/
 .scratch/
+.rtk/
+*.pdf
+*.Identifier
