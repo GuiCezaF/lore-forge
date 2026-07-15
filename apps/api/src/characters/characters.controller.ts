@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -39,7 +40,9 @@ export class CharactersController {
   @Get('npcs')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Lista NPCs das campanhas administradas pelo Mestre' })
+  @ApiOperation({
+    summary: 'Lista NPCs das campanhas administradas pelo Mestre',
+  })
   @ApiOkResponse({ description: 'NPCs gerenciáveis' })
   listNpcs(@CurrentUser() user: AuthUser) {
     return this.charactersService.listNpcsForGm(user.id);
@@ -48,7 +51,9 @@ export class CharactersController {
   @Get('ruleset')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Returns the database-backed character rules catalog' })
+  @ApiOperation({
+    summary: 'Returns the database-backed character rules catalog',
+  })
   ruleset() {
     return this.charactersService.getRuleset();
   }
@@ -60,7 +65,9 @@ export class CharactersController {
   @ApiOkResponse({ description: 'Ficha criada' })
   create(@CurrentUser() user: AuthUser, @Body() body: any) {
     if (body.kind === 'npc') {
-      return this.charactersService.createNpc(user.id, body.campaignId, body);
+      throw new BadRequestException(
+        'NPCs must be added from a published template in a campaign',
+      );
     }
     return this.charactersService.createPlayerCharacter(user.id, body);
   }
@@ -70,6 +77,10 @@ export class CharactersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cria um rascunho persistido de ficha de jogador' })
   createDraft(@CurrentUser() user: AuthUser, @Body() body: any) {
+    if (body.kind === 'npc')
+      throw new BadRequestException(
+        'NPCs must be added from a published template in a campaign',
+      );
     return this.charactersService.createDraft(user.id, body);
   }
 
@@ -77,7 +88,11 @@ export class CharactersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Salva automaticamente um rascunho de ficha' })
-  saveDraft(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string, @Body() body: any) {
+  saveDraft(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+    @Body() body: any,
+  ) {
     return this.charactersService.saveDraft(user.id, characterId, body);
   }
 
@@ -85,15 +100,26 @@ export class CharactersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Copia apenas a ficha permanente de um personagem' })
-  copy(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string, @Body() body: { sheetLabel?: string }) {
-    return this.charactersService.copyCharacter(user.id, characterId, body?.sheetLabel);
+  copy(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+    @Body() body: { sheetLabel?: string },
+  ) {
+    return this.charactersService.copyCharacter(
+      user.id,
+      characterId,
+      body?.sheetLabel,
+    );
   }
 
   @Post(':characterId/edit-draft')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cria ou retoma uma revisão da ficha ativa' })
-  beginEditDraft(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string) {
+  beginEditDraft(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+  ) {
     return this.charactersService.beginEditDraft(user.id, characterId);
   }
 
@@ -101,7 +127,11 @@ export class CharactersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Autosalva o snapshot completo de uma revisão' })
-  saveEditDraft(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string, @Body() body: any) {
+  saveEditDraft(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+    @Body() body: any,
+  ) {
     return this.charactersService.saveEditDraft(user.id, characterId, body);
   }
 
@@ -109,7 +139,10 @@ export class CharactersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Publica uma revisão sem conflitos' })
-  publishEditDraft(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string) {
+  publishEditDraft(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+  ) {
     return this.charactersService.publishEditDraft(user.id, characterId);
   }
 
@@ -118,15 +151,22 @@ export class CharactersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Descarta idempotentemente uma revisão' })
-  async discardEditDraft(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string): Promise<void> {
+  async discardEditDraft(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+  ): Promise<void> {
     await this.charactersService.discardEditDraft(user.id, characterId);
   }
 
   @Post(':characterId/archive')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Arquiva uma ficha vinculada à campanha' })
-  async archive(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string): Promise<void> {
+  async archive(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+  ): Promise<void> {
     await this.charactersService.archiveCharacter(user.id, characterId);
   }
 
@@ -159,7 +199,10 @@ export class CharactersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtém estado e inventário exclusivos da campanha' })
-  playState(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string) {
+  playState(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+  ) {
     return this.charactersService.getCampaignPlayState(user.id, characterId);
   }
 
@@ -167,32 +210,60 @@ export class CharactersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtém o bloco de ameaça tipado de um NPC' })
-  npcStatBlock(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string) {
+  npcStatBlock(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+  ) {
     return this.charactersService.getNpcStatBlock(user.id, characterId);
   }
 
   @Patch(':characterId/play-state')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Atualiza o estado de jogo da própria ficha na campanha' })
-  async updatePlayState(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string, @Body() body: any): Promise<void> {
-    await this.charactersService.updateCampaignState(user.id, characterId, body);
+  @ApiOperation({
+    summary: 'Atualiza o estado de jogo da própria ficha na campanha',
+  })
+  async updatePlayState(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+    @Body() body: any,
+  ): Promise<void> {
+    await this.charactersService.updateCampaignState(
+      user.id,
+      characterId,
+      body,
+    );
   }
 
   @Post(':characterId/inventory')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'GM adiciona item ao inventário exclusivo da campanha' })
-  async addInventory(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string, @Body() body: any): Promise<void> {
+  @ApiOperation({
+    summary: 'GM adiciona item ao inventário exclusivo da campanha',
+  })
+  async addInventory(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+    @Body() body: any,
+  ): Promise<void> {
     await this.charactersService.addInventoryItem(user.id, characterId, body);
   }
 
   @Delete(':characterId/inventory/:inventoryId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'GM remove item do inventário exclusivo da campanha' })
-  async removeInventory(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string, @Param('inventoryId') inventoryId: string): Promise<void> {
-    await this.charactersService.removeInventoryItem(user.id, characterId, inventoryId);
+  @ApiOperation({
+    summary: 'GM remove item do inventário exclusivo da campanha',
+  })
+  async removeInventory(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+    @Param('inventoryId') inventoryId: string,
+  ): Promise<void> {
+    await this.charactersService.removeInventoryItem(
+      user.id,
+      characterId,
+      inventoryId,
+    );
   }
-
 }

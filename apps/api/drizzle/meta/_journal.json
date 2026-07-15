@@ -50,6 +50,20 @@
       "when": 1784145600002,
       "tag": "0006_campaign_clues",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784145600003,
+      "tag": "0007_campaign_character_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784145600004,
+      "tag": "0008_spectator_access",
+      "breakpoints": true
     }
   ]
 }

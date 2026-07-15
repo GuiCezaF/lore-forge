@@ -55,6 +55,11 @@ async function proxyRequest(request: NextRequest, path: string[]) {
   if (responseContentType) {
     responseHeaders.set("content-type", responseContentType);
   }
+  if (targetPath.startsWith("spectator-access/")) {
+    responseHeaders.set("cache-control", "no-store");
+    responseHeaders.set("referrer-policy", "no-referrer");
+    responseHeaders.set("x-content-type-options", "nosniff");
+  }
 
   const response = new NextResponse(apiResponse.body, {
     status: apiResponse.status,
