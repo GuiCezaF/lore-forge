@@ -388,6 +388,61 @@ export const characterSelections = pgTable(
   (table) => ({ characterIdx: index('character_selections_character_id_idx').on(table.characterId) }),
 );
 
+/** A private, staged revision for an active player character. */
+export const characterEditDrafts = pgTable(
+  'character_edit_drafts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+    rulesetVersion: text('ruleset_version').notNull().references(() => rulesets.version),
+    name: text('name').notNull(),
+    sheetLabel: text('sheet_label'),
+    concept: text('concept'),
+    gender: text('gender'),
+    age: integer('age'),
+    appearance: text('appearance'),
+    personality: text('personality'),
+    history: text('history'),
+    objective: text('objective'),
+    playerNotes: text('player_notes'),
+    origin: text('origin'),
+    characterClass: text('character_class'),
+    path: text('path'),
+    nex: integer('nex').notNull(),
+    agility: integer('agility').notNull(),
+    strength: integer('strength').notNull(),
+    intellect: integer('intellect').notNull(),
+    presence: integer('presence').notNull(),
+    vigor: integer('vigor').notNull(),
+    imageAssetId: uuid('image_asset_id').references(() => mediaAssets.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { mode: 'string', withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'string', withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({ characterIdx: uniqueIndex('character_edit_drafts_character_id_unique').on(table.characterId) }),
+);
+
+export const characterEditDraftSkills = pgTable(
+  'character_edit_draft_skills',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    draftId: uuid('draft_id').notNull().references(() => characterEditDrafts.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    degree: text('degree').notNull().default('trained'),
+  },
+  (table) => ({ draftIdx: index('character_edit_draft_skills_draft_id_idx').on(table.draftId) }),
+);
+
+export const characterEditDraftPowers = pgTable(
+  'character_edit_draft_powers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    draftId: uuid('draft_id').notNull().references(() => characterEditDrafts.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    rank: integer('rank').notNull().default(1),
+  },
+  (table) => ({ draftIdx: index('character_edit_draft_powers_draft_id_idx').on(table.draftId) }),
+);
+
 /** Typed, campaign-scoped NPC threat stat block. Player Characters never use
  * these tables; their permanent build remains in `characters`. */
 export const npcStatBlocks = pgTable(
@@ -596,6 +651,8 @@ export type CampaignMemberRow = typeof campaignMembers.$inferSelect;
 export type NewCampaignMemberRow = typeof campaignMembers.$inferInsert;
 export type CharacterRow = typeof characters.$inferSelect;
 export type NewCharacterRow = typeof characters.$inferInsert;
+export type CharacterEditDraftRow = typeof characterEditDrafts.$inferSelect;
+export type NewCharacterEditDraftRow = typeof characterEditDrafts.$inferInsert;
 export type MonsterRow = typeof monsters.$inferSelect;
 export type NewMonsterRow = typeof monsters.$inferInsert;
 export type ItemRow = typeof items.$inferSelect;

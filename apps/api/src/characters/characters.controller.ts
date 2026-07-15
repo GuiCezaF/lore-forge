@@ -3,9 +3,12 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -84,6 +87,39 @@ export class CharactersController {
   @ApiOperation({ summary: 'Copia apenas a ficha permanente de um personagem' })
   copy(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string, @Body() body: { sheetLabel?: string }) {
     return this.charactersService.copyCharacter(user.id, characterId, body?.sheetLabel);
+  }
+
+  @Post(':characterId/edit-draft')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cria ou retoma uma revisão da ficha ativa' })
+  beginEditDraft(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string) {
+    return this.charactersService.beginEditDraft(user.id, characterId);
+  }
+
+  @Put(':characterId/edit-draft')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Autosalva o snapshot completo de uma revisão' })
+  saveEditDraft(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string, @Body() body: any) {
+    return this.charactersService.saveEditDraft(user.id, characterId, body);
+  }
+
+  @Post(':characterId/edit-draft/publish')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Publica uma revisão sem conflitos' })
+  publishEditDraft(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string) {
+    return this.charactersService.publishEditDraft(user.id, characterId);
+  }
+
+  @Delete(':characterId/edit-draft')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Descarta idempotentemente uma revisão' })
+  async discardEditDraft(@CurrentUser() user: AuthUser, @Param('characterId') characterId: string): Promise<void> {
+    await this.charactersService.discardEditDraft(user.id, characterId);
   }
 
   @Post(':characterId/archive')

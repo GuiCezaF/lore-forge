@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { and, asc, eq, isNull, or } from 'drizzle-orm';
 import { CampaignsService } from '../campaigns/campaigns.service';
@@ -11,6 +13,9 @@ import { DATABASE } from '../database/database.constants';
 import type { Database } from '../database/database.types';
 import {
   campaignCharacterStates,
+  characterEditDraftPowers,
+  characterEditDraftSkills,
+  characterEditDrafts,
   characterInventory,
   characterSelections,
   characterSkills,
@@ -26,6 +31,7 @@ import {
 } from '../database/schema';
 import {
   calculateDerived,
+  analyzeBuild,
   type CharacterSelectionInput,
   type CharacterSkillInput,
   validateBuild,
@@ -45,6 +51,13 @@ export interface CharacterDto {
   rulesetVersion: string;
   name: string;
   concept: string | null;
+  gender: string | null;
+  age: number | null;
+  appearance: string | null;
+  personality: string | null;
+  history: string | null;
+  objective: string | null;
+  playerNotes: string | null;
   origin: string | null;
   characterClass: string | null;
   path: string | null;
@@ -55,6 +68,35 @@ export interface CharacterDto {
   derived: { maxHp: number | null; maxSan: number | null; maxEp: number | null; epLimit: number | null; defense: number | null; dodge: number | null; block: number | null; movement: number | null; carryCapacity: number | null };
   imageAssetId: string | null;
   createdAt: string;
+  updatedAt: string;
+  permissions: { canEditPermanentData: boolean; canEditPlayState: boolean; canManageInventory: boolean };
+  hasEditDraft: boolean;
+}
+
+export interface CharacterEditDraftDto {
+  id: string;
+  characterId: string;
+  rulesetVersion: string;
+  name: string;
+  sheetLabel: string | null;
+  concept: string | null;
+  gender: string | null;
+  age: number | null;
+  appearance: string | null;
+  personality: string | null;
+  history: string | null;
+  objective: string | null;
+  playerNotes: string | null;
+  origin: string | null;
+  characterClass: string | null;
+  path: string | null;
+  nex: number;
+  attributes: { agility: number; strength: number; intellect: number; presence: number; vigor: number };
+  imageAssetId: string | null;
+  skills: CharacterSkillInput[];
+  powers: Array<{ name: string; rank: number }>;
+  derived: CharacterDto['derived'];
+  conflicts: Array<{ code: string; field: string; optionId?: string; message: string }>;
   updatedAt: string;
 }
 
@@ -81,6 +123,13 @@ export type CharacterInput = {
   name: string;
   sheetLabel?: string | null;
   concept?: string | null;
+  gender?: string | null;
+  age?: number | null;
+  appearance?: string | null;
+  personality?: string | null;
+  history?: string | null;
+  objective?: string | null;
+  playerNotes?: string | null;
   origin?: string | null;
   characterClass?: string | null;
   path?: string | null;
@@ -239,15 +288,109 @@ export class CharactersService {
 
   async getCharacter(userId: string, characterId: string): Promise<CharacterDto> {
     const row = await this.getAccessibleCharacter(userId, characterId);
-    return this.getCharacterDto(row, row.ownerUserId === userId);
+    return this.getCharacterDto(row, row.ownerUserId === userId, userId);
+  }
+
+  async beginEditDraft(userId: string, characterId: string): Promise<CharacterEditDraftDto> {
+    const character = await this.getAccessibleCharacter(userId, characterId);
+    this.ensureCanEditActivePlayerCharacter(userId, character);
+    const [existing] = await this.db.select().from(characterEditDrafts)
+      .where(eq(characterEditDrafts.characterId, characterId));
+    if (existing) return this.getEditDraftDto(existing);
+
+    const [skills, powers] = await Promise.all([
+      this.db.select({ name: characterSkills.name, degree: characterSkills.degree }).from(characterSkills).where(eq(characterSkills.characterId, characterId)),
+      this.db.select({ name: characterSelections.name, rank: characterSelections.rank }).from(characterSelections).where(and(eq(characterSelections.characterId, characterId), eq(characterSelections.category, 'power'))),
+    ]);
+    const [draft] = await this.db.insert(characterEditDrafts).values({
+      characterId: character.id, rulesetVersion: character.rulesetVersion, name: character.name,
+      sheetLabel: character.sheetLabel, concept: character.concept, gender: character.gender,
+      age: character.age, appearance: character.appearance, personality: character.personality,
+      history: character.history, objective: character.objective, playerNotes: character.playerNotes,
+      origin: character.origin, characterClass: character.characterClass, path: character.path,
+      nex: character.nex, agility: character.agility, strength: character.strength,
+      intellect: character.intellect, presence: character.presence, vigor: character.vigor,
+      imageAssetId: character.imageAssetId,
+    }).returning();
+    if (skills.length) await this.db.insert(characterEditDraftSkills).values(skills.map((skill) => ({ draftId: draft.id, ...skill })));
+    if (powers.length) await this.db.insert(characterEditDraftPowers).values(powers.map((power) => ({ draftId: draft.id, ...power })));
+    return this.getEditDraftDto(draft);
+  }
+
+  async saveEditDraft(userId: string, characterId: string, body: CharacterInput): Promise<CharacterEditDraftDto> {
+    const character = await this.getAccessibleCharacter(userId, characterId);
+    this.ensureCanEditActivePlayerCharacter(userId, character);
+    const [current] = await this.db.select().from(characterEditDrafts).where(eq(characterEditDrafts.characterId, characterId));
+    if (!current) throw new NotFoundException('Edit draft not found');
+    this.ensureName(body.name);
+    await this.ensureOwnedImageAsset(userId, body.imageAssetId);
+    const now = new Date().toISOString();
+    const [draft] = await this.db.transaction(async (tx) => {
+      const [updated] = await tx.update(characterEditDrafts).set({
+        name: body.name.trim(), sheetLabel: body.sheetLabel?.trim() || null, concept: body.concept?.trim() || null,
+        gender: body.gender?.trim() || null, age: body.age ?? null, appearance: body.appearance?.trim() || null,
+        personality: body.personality?.trim() || null, history: body.history?.trim() || null,
+        objective: body.objective?.trim() || null, playerNotes: body.playerNotes?.trim() || null,
+        origin: body.origin?.trim() || null, characterClass: body.characterClass?.trim() || null,
+        path: body.path?.trim() || null, nex: body.nex ?? current.nex,
+        ...this.getAttributes(body), imageAssetId: body.imageAssetId ?? null, updatedAt: now,
+      }).where(eq(characterEditDrafts.id, current.id)).returning();
+      await tx.delete(characterEditDraftSkills).where(eq(characterEditDraftSkills.draftId, current.id));
+      await tx.delete(characterEditDraftPowers).where(eq(characterEditDraftPowers.draftId, current.id));
+      if (body.skills?.length) await tx.insert(characterEditDraftSkills).values(body.skills.map((skill) => ({ draftId: current.id, name: skill.name, degree: skill.degree ?? 'trained' })));
+      const powers = (body.selections ?? []).filter((selection) => selection.category === 'power');
+      if (powers.length) await tx.insert(characterEditDraftPowers).values(powers.map((power) => ({ draftId: current.id, name: power.name, rank: power.rank ?? 1 })));
+      return [updated];
+    });
+    if (current.imageAssetId !== draft.imageAssetId) await this.mediaService.releaseImageIfUnreferenced(userId, current.imageAssetId);
+    return this.getEditDraftDto(draft);
+  }
+
+  async publishEditDraft(userId: string, characterId: string): Promise<CharacterDto> {
+    const character = await this.getAccessibleCharacter(userId, characterId);
+    this.ensureCanEditActivePlayerCharacter(userId, character);
+    const [draft] = await this.db.select().from(characterEditDrafts).where(eq(characterEditDrafts.characterId, characterId));
+    if (!draft) throw new NotFoundException('Edit draft not found');
+    const review = await this.getEditDraftDto(draft);
+    if (review.conflicts.length) throw new UnprocessableEntityException({ conflicts: review.conflicts });
+    const derived = calculateDerived(await this.rulesService.getCatalog(draft.rulesetVersion), draft.characterClass!, draft.nex, {
+      agility: draft.agility, strength: draft.strength, intellect: draft.intellect, presence: draft.presence, vigor: draft.vigor,
+    });
+    const [published] = await this.db.transaction(async (tx) => {
+      const [updated] = await tx.update(characters).set({
+        name: draft.name, sheetLabel: draft.sheetLabel, concept: draft.concept, gender: draft.gender, age: draft.age,
+        appearance: draft.appearance, personality: draft.personality, history: draft.history, objective: draft.objective,
+        playerNotes: draft.playerNotes, origin: draft.origin, characterClass: draft.characterClass, path: draft.path,
+        nex: draft.nex, agility: draft.agility, strength: draft.strength, intellect: draft.intellect,
+        presence: draft.presence, vigor: draft.vigor, imageAssetId: draft.imageAssetId, ...derived,
+        updatedAt: new Date().toISOString(),
+      }).where(eq(characters.id, characterId)).returning();
+      await tx.delete(characterSkills).where(eq(characterSkills.characterId, characterId));
+      await tx.delete(characterSelections).where(and(eq(characterSelections.characterId, characterId), eq(characterSelections.category, 'power')));
+      if (review.skills.length) await tx.insert(characterSkills).values(review.skills.map((skill) => ({ characterId, name: skill.name, degree: skill.degree ?? 'trained' })));
+      if (review.powers.length) await tx.insert(characterSelections).values(review.powers.map((power) => ({ characterId, category: 'power', name: power.name, rank: power.rank })));
+      await tx.delete(characterEditDrafts).where(eq(characterEditDrafts.id, draft.id));
+      return [updated];
+    });
+    // TODO(live-events): emit a post-transaction permanent-sheet update event.
+    if (character.imageAssetId !== published.imageAssetId) await this.mediaService.releaseImageIfUnreferenced(userId, character.imageAssetId);
+    return this.getCharacterDto(published, true, userId);
+  }
+
+  async discardEditDraft(userId: string, characterId: string): Promise<void> {
+    const character = await this.getAccessibleCharacter(userId, characterId);
+    this.ensureCanEditActivePlayerCharacter(userId, character);
+    const [draft] = await this.db.delete(characterEditDrafts).where(eq(characterEditDrafts.characterId, characterId)).returning();
+    if (draft) await this.mediaService.releaseImageIfUnreferenced(userId, draft.imageAssetId);
   }
 
   async updateCharacter(userId: string, characterId: string, body: CharacterInput): Promise<CharacterDto> {
     const current = await this.getAccessibleCharacter(userId, characterId);
     if (current.kind === 'pc' && current.ownerUserId !== userId) throw new ForbiddenException('Only the sheet owner can edit a Player Character');
     if (current.kind === 'pc' && current.status === 'archived') {
-      throw new BadRequestException('Archived sheets are read-only; copy the sheet to use it again');
+      throw new ConflictException('Archived sheets are read-only; copy the sheet to use it again');
     }
+    if (current.kind === 'pc' && current.status === 'active') throw new ConflictException('Active Player Characters must be edited through a revision');
     if (current.kind === 'npc') await this.ensureManager(userId, current.campaignId);
     if (body.imageAssetId !== undefined) await this.ensureOwnedImageAsset(userId, body.imageAssetId);
     const attributes = this.getAttributes({ ...current, ...body });
@@ -266,6 +409,13 @@ export class CharactersService {
       name: body.name?.trim() || current.name,
       sheetLabel: body.sheetLabel === undefined ? current.sheetLabel : body.sheetLabel?.trim() || null,
       concept: body.concept === undefined ? current.concept : body.concept?.trim() || null,
+      gender: body.gender === undefined ? current.gender : body.gender?.trim() || null,
+      age: body.age === undefined ? current.age : body.age,
+      appearance: body.appearance === undefined ? current.appearance : body.appearance?.trim() || null,
+      personality: body.personality === undefined ? current.personality : body.personality?.trim() || null,
+      history: body.history === undefined ? current.history : body.history?.trim() || null,
+      objective: body.objective === undefined ? current.objective : body.objective?.trim() || null,
+      playerNotes: body.playerNotes === undefined ? current.playerNotes : body.playerNotes?.trim() || null,
       origin: body.origin === undefined ? current.origin : body.origin?.trim() || null,
       characterClass: body.characterClass === undefined ? current.characterClass : body.characterClass?.trim() || null,
       path: body.path === undefined ? current.path : body.path?.trim() || null,
@@ -368,20 +518,29 @@ export class CharactersService {
       throw new ForbiddenException('Only the sheet owner can archive a Player Character');
     }
     const now = new Date().toISOString();
-    await this.db.update(characters).set({ status: 'archived', frozenAt: now, updatedAt: now }).where(eq(characters.id, characterId));
+    const [draft] = await this.db.transaction(async (tx) => {
+      await tx.update(characters).set({ status: 'archived', frozenAt: now, updatedAt: now }).where(eq(characters.id, characterId));
+      return tx.delete(characterEditDrafts).where(eq(characterEditDrafts.characterId, characterId)).returning();
+    });
+    if (draft) await this.mediaService.releaseImageIfUnreferenced(userId, draft.imageAssetId);
   }
 
-  async updateCampaignState(userId: string, characterId: string, body: { currentHp: number; currentSan: number; currentEp: number; conditions?: string; temporaryEffects?: string }): Promise<void> {
+  async updateCampaignState(userId: string, characterId: string, body: Partial<{ currentHp: number; currentSan: number; currentEp: number; conditions: string; temporaryEffects: string }>): Promise<void> {
     const character = await this.getAccessibleCharacter(userId, characterId);
     if (character.kind !== 'pc') {
       throw new BadRequestException('Only Player Characters have campaign play state');
     }
     if (character.ownerUserId !== userId) throw new ForbiddenException('Only the sheet owner can edit campaign state');
     if (!character.campaignId) throw new BadRequestException('Character is not in a campaign');
+    if (character.status === 'archived') throw new ConflictException('Archived sheets are read-only');
     for (const [name, value] of Object.entries({ currentHp: body.currentHp, currentSan: body.currentSan, currentEp: body.currentEp })) {
+      if (value === undefined) continue;
       if (!Number.isInteger(value) || value < 0) throw new BadRequestException(`${name} must be a non-negative integer`);
     }
-    await this.db.insert(campaignCharacterStates).values({ characterId, ...body }).onConflictDoUpdate({ target: campaignCharacterStates.characterId, set: { ...body, updatedAt: new Date().toISOString() } });
+    const [current] = await this.db.select().from(campaignCharacterStates).where(eq(campaignCharacterStates.characterId, characterId));
+    const state = { currentHp: body.currentHp ?? current?.currentHp ?? character.maxHp ?? 0, currentSan: body.currentSan ?? current?.currentSan ?? character.maxSan ?? 0, currentEp: body.currentEp ?? current?.currentEp ?? character.maxEp ?? 0, conditions: body.conditions ?? current?.conditions ?? '', temporaryEffects: body.temporaryEffects ?? current?.temporaryEffects ?? '' };
+    await this.db.insert(campaignCharacterStates).values({ characterId, ...state }).onConflictDoUpdate({ target: campaignCharacterStates.characterId, set: { ...state, updatedAt: new Date().toISOString() } });
+    // TODO(live-events): emit a post-transaction play-state update event.
   }
 
   async getCampaignPlayState(userId: string, characterId: string): Promise<CampaignPlayStateDto> {
@@ -414,6 +573,7 @@ export class CharactersService {
     if (character.kind !== 'pc') {
       throw new BadRequestException('Only Player Characters have campaign inventory');
     }
+    if (character.status === 'archived') throw new ConflictException('Archived sheets are read-only');
     await this.ensureManager(userId, character.campaignId);
     this.ensureName(body.name);
     if (!Number.isInteger(body.quantity ?? 1) || (body.quantity ?? 1) < 1) throw new BadRequestException('Inventory quantity must be at least 1');
@@ -425,6 +585,7 @@ export class CharactersService {
     if (character.kind !== 'pc') {
       throw new BadRequestException('Only Player Characters have campaign inventory');
     }
+    if (character.status === 'archived') throw new ConflictException('Archived sheets are read-only');
     await this.ensureManager(userId, character.campaignId);
     const deleted = await this.db.delete(characterInventory).where(and(eq(characterInventory.id, inventoryId), eq(characterInventory.characterId, characterId))).returning({ id: characterInventory.id });
     if (!deleted.length) throw new NotFoundException('Inventory entry not found');
@@ -435,6 +596,12 @@ export class CharactersService {
     if (!row) throw new NotFoundException('Character not found');
     if (row.ownerUserId === userId || (row.campaignId && await this.canAccessCampaign(userId, row.campaignId))) return row;
     throw new NotFoundException('Character not found');
+  }
+
+  private ensureCanEditActivePlayerCharacter(userId: string, character: typeof characters.$inferSelect): void {
+    if (character.kind !== 'pc' || character.ownerUserId !== userId) throw new ForbiddenException('Only the sheet owner can edit a Player Character');
+    if (character.status === 'archived') throw new ConflictException('Archived sheets are read-only');
+    if (character.status !== 'active') throw new ConflictException('Only active Player Characters use revisions');
   }
 
   private async canAccessCampaign(userId: string, campaignId: string): Promise<boolean> {
@@ -539,10 +706,10 @@ export class CharactersService {
   }
 
   private toDto(row: typeof characters.$inferSelect, includeOwnerMetadata = true): CharacterDto {
-    return { id: row.id, campaignId: row.campaignId ?? null, ownerUserId: row.ownerUserId ?? null, sourceCharacterId: includeOwnerMetadata ? row.sourceCharacterId ?? null : null, kind: row.kind, status: row.status, npcMode: row.npcMode ?? null, sheetLabel: includeOwnerMetadata ? row.sheetLabel ?? null : null, rulesetVersion: row.rulesetVersion, name: row.name, concept: row.concept ?? null, origin: row.origin ?? null, characterClass: row.characterClass ?? null, path: row.path ?? null, nex: row.nex, attributes: { agility: row.agility, strength: row.strength, intellect: row.intellect, presence: row.presence, vigor: row.vigor }, skills: [], powers: [], derived: { maxHp: row.maxHp ?? null, maxSan: row.maxSan ?? null, maxEp: row.maxEp ?? null, epLimit: row.epLimit ?? null, defense: row.defense ?? null, dodge: row.dodge ?? null, block: row.block ?? null, movement: row.movement ?? null, carryCapacity: row.carryCapacity ?? null }, imageAssetId: row.imageAssetId ?? null, createdAt: row.createdAt, updatedAt: row.updatedAt };
+    return { id: row.id, campaignId: row.campaignId ?? null, ownerUserId: row.ownerUserId ?? null, sourceCharacterId: includeOwnerMetadata ? row.sourceCharacterId ?? null : null, kind: row.kind, status: row.status, npcMode: row.npcMode ?? null, sheetLabel: includeOwnerMetadata ? row.sheetLabel ?? null : null, rulesetVersion: row.rulesetVersion, name: row.name, concept: row.concept ?? null, gender: row.gender ?? null, age: row.age ?? null, appearance: row.appearance ?? null, personality: row.personality ?? null, history: row.history ?? null, objective: row.objective ?? null, playerNotes: includeOwnerMetadata ? row.playerNotes ?? null : null, origin: row.origin ?? null, characterClass: row.characterClass ?? null, path: row.path ?? null, nex: row.nex, attributes: { agility: row.agility, strength: row.strength, intellect: row.intellect, presence: row.presence, vigor: row.vigor }, skills: [], powers: [], derived: { maxHp: row.maxHp ?? null, maxSan: row.maxSan ?? null, maxEp: row.maxEp ?? null, epLimit: row.epLimit ?? null, defense: row.defense ?? null, dodge: row.dodge ?? null, block: row.block ?? null, movement: row.movement ?? null, carryCapacity: row.carryCapacity ?? null }, imageAssetId: row.imageAssetId ?? null, createdAt: row.createdAt, updatedAt: row.updatedAt, permissions: { canEditPermanentData: false, canEditPlayState: false, canManageInventory: false }, hasEditDraft: false };
   }
 
-  private async getCharacterDto(row: typeof characters.$inferSelect, includeOwnerMetadata: boolean): Promise<CharacterDto> {
+  private async getCharacterDto(row: typeof characters.$inferSelect, includeOwnerMetadata: boolean, userId?: string): Promise<CharacterDto> {
     const [skills, selections] = await Promise.all([
       this.db.select({ name: characterSkills.name, degree: characterSkills.degree })
         .from(characterSkills)
@@ -553,6 +720,12 @@ export class CharactersService {
         .where(eq(characterSelections.characterId, row.id))
         .orderBy(asc(characterSelections.name)),
     ]);
+    const [draft] = await this.db.select({ id: characterEditDrafts.id }).from(characterEditDrafts).where(eq(characterEditDrafts.characterId, row.id));
+    const isOwner = row.ownerUserId === userId;
+    let canManageInventory = false;
+    if (row.campaignId && userId) {
+      try { await this.ensureManager(userId, row.campaignId); canManageInventory = row.status !== 'archived'; } catch { /* no inventory permission */ }
+    }
     const dto = this.toDto(row, includeOwnerMetadata);
     return {
       ...dto,
@@ -560,6 +733,26 @@ export class CharactersService {
       powers: selections
         .filter((selection) => selection.category === 'power')
         .map(({ name, rank }) => ({ name, rank })),
+      permissions: {
+        canEditPermanentData: isOwner && row.kind === 'pc' && row.status === 'active',
+        canEditPlayState: isOwner && row.kind === 'pc' && row.status !== 'archived' && Boolean(row.campaignId),
+        canManageInventory,
+      },
+      hasEditDraft: Boolean(draft),
     };
+  }
+
+  private async getEditDraftDto(draft: typeof characterEditDrafts.$inferSelect): Promise<CharacterEditDraftDto> {
+    const [skills, powers, catalog] = await Promise.all([
+      this.db.select({ name: characterEditDraftSkills.name, degree: characterEditDraftSkills.degree }).from(characterEditDraftSkills).where(eq(characterEditDraftSkills.draftId, draft.id)),
+      this.db.select({ name: characterEditDraftPowers.name, rank: characterEditDraftPowers.rank }).from(characterEditDraftPowers).where(eq(characterEditDraftPowers.draftId, draft.id)),
+      this.rulesService.getCatalog(draft.rulesetVersion),
+    ]);
+    const attributes = { agility: draft.agility, strength: draft.strength, intellect: draft.intellect, presence: draft.presence, vigor: draft.vigor };
+    const selections = powers.map((power) => ({ category: 'power' as const, name: power.name, rank: power.rank }));
+    const conflicts = analyzeBuild(catalog, { origin: draft.origin, characterClass: draft.characterClass, path: draft.path, nex: draft.nex, attributes, skills, selections, isFinal: true });
+    let derived: CharacterDto['derived'] = { maxHp: null, maxSan: null, maxEp: null, epLimit: null, defense: null, dodge: null, block: null, movement: null, carryCapacity: null };
+    try { derived = calculateDerived(catalog, draft.characterClass ?? '', draft.nex, attributes); } catch { /* conflicts provide the actionable reason */ }
+    return { id: draft.id, characterId: draft.characterId, rulesetVersion: draft.rulesetVersion, name: draft.name, sheetLabel: draft.sheetLabel ?? null, concept: draft.concept ?? null, gender: draft.gender ?? null, age: draft.age ?? null, appearance: draft.appearance ?? null, personality: draft.personality ?? null, history: draft.history ?? null, objective: draft.objective ?? null, playerNotes: draft.playerNotes ?? null, origin: draft.origin ?? null, characterClass: draft.characterClass ?? null, path: draft.path ?? null, nex: draft.nex, attributes, imageAssetId: draft.imageAssetId ?? null, skills, powers, derived, conflicts, updatedAt: draft.updatedAt };
   }
 }

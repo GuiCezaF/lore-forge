@@ -29,6 +29,13 @@
       "when": 1783893299890,
       "tag": "0003_catalog-skill-distribution",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784145600000,
+      "tag": "0004_character_edit_drafts",
+      "breakpoints": true
     }
   ]
 }
