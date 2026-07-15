@@ -7,12 +7,13 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { and, asc, eq, isNull, or } from 'drizzle-orm';
+import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
 import { CampaignsService } from '../campaigns/campaigns.service';
 import { DATABASE } from '../database/database.constants';
 import type { Database } from '../database/database.types';
 import {
   campaignCharacterStates,
+  campaignCharacterRituals,
   campaignMembers,
   campaigns,
   characterEditDraftPowers,
@@ -39,9 +40,14 @@ import {
   type CharacterSkillInput,
   validateBuild,
 } from './ordem-ruleset';
-import { RulesService } from '../rules/rules.service';
+import { RulesService, type RulesetCatalog } from '../rules/rules.service';
 import { MediaService } from '../media/media.service';
 import { NpcStatBlocksService } from './npc-stat-blocks.service';
+import { normalizeCampaignStatePatch } from './normalize-campaign-state-patch';
+import { parseCampaignStatePatch } from './parse-campaign-state-patch';
+
+type CampaignResourceKey = 'currentHp' | 'currentSan' | 'currentEp';
+type CampaignResourceMaximums = Record<CampaignResourceKey, number>;
 
 export interface CharacterDto {
   id: string;
@@ -98,6 +104,7 @@ export interface CharacterDto {
     canViewCampaignState: boolean;
     canEditPermanentData: boolean;
     canEditPlayState: boolean;
+    canManageRituals: boolean;
     canManageInventory: boolean;
   };
   hasEditDraft: boolean;
@@ -142,12 +149,22 @@ export interface CharacterEditDraftDto {
 }
 
 export interface CampaignPlayStateDto {
-  currentHp: number;
-  currentSan: number;
-  currentEp: number;
+  currentHp: number | null;
+  maxHp: number | null;
+  currentSan: number | null;
+  maxSan: number | null;
+  currentEp: number | null;
+  maxEp: number | null;
   conditions: string;
   temporaryEffects: string;
   gmNotes: string | null;
+  updatedAt: string;
+  rituals: Array<{
+    slug: string;
+    name: string;
+    rank: number;
+    maxRank: number;
+  }>;
   inventory: Array<{
     id: string;
     itemId: string | null;
@@ -366,7 +383,11 @@ export class CharactersService {
       })
       .returning();
     if (row.npcMode === 'threat')
-      await this.npcStatBlocksService?.replace(row.id, body.npcStatBlock ?? {});
+      await this.npcStatBlocksService?.replace(
+        row.id,
+        body.npcStatBlock ?? {},
+        true,
+      );
     return this.toDto(row);
   }
 
@@ -554,10 +575,17 @@ export class CharactersService {
       .where(eq(characterEditDrafts.characterId, characterId));
     if (!draft) throw new NotFoundException('Edit draft not found');
     const review = await this.getEditDraftDto(draft);
-    if (review.conflicts.length)
-      throw new UnprocessableEntityException({ conflicts: review.conflicts });
+    const catalog = await this.rulesService.getCatalog(draft.rulesetVersion);
+    const ritualConflicts = await this.getCampaignRitualConflicts(
+      characterId,
+      catalog,
+      draft.characterClass,
+      draft.nex,
+    );
+    const conflicts = [...review.conflicts, ...ritualConflicts];
+    if (conflicts.length) throw new UnprocessableEntityException({ conflicts });
     const derived = calculateDerived(
-      await this.rulesService.getCatalog(draft.rulesetVersion),
+      catalog,
       draft.characterClass!,
       draft.nex,
       {
@@ -597,6 +625,27 @@ export class CharactersService {
         })
         .where(eq(characters.id, characterId))
         .returning();
+      if (updated.campaignId) {
+        const now = new Date().toISOString();
+        await tx
+          .insert(campaignCharacterStates)
+          .values({
+            characterId,
+            currentHp: derived.maxHp,
+            currentSan: derived.maxSan,
+            currentEp: derived.maxEp,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: campaignCharacterStates.characterId,
+            set: {
+              currentHp: sql`least(${campaignCharacterStates.currentHp}, ${derived.maxHp})`,
+              currentSan: sql`least(${campaignCharacterStates.currentSan}, ${derived.maxSan})`,
+              currentEp: sql`least(${campaignCharacterStates.currentEp}, ${derived.maxEp})`,
+              updatedAt: now,
+            },
+          });
+      }
       await tx
         .delete(characterSkills)
         .where(eq(characterSkills.characterId, characterId));
@@ -786,13 +835,23 @@ export class CharactersService {
       (body.skills !== undefined || body.selections !== undefined)
     )
       await this.replaceBuildSelections(characterId, body);
-    if (current.kind === 'npc' && body.npcStatBlock !== undefined)
-      await this.npcStatBlocksService?.replace(characterId, body.npcStatBlock);
+    const nextNpcMode = body.npcMode ?? current.npcMode;
     if (
       current.kind === 'npc' &&
-      (body.npcMode ?? current.npcMode) === 'narrative'
+      nextNpcMode === 'threat' &&
+      (body.npcStatBlock !== undefined || current.npcMode !== 'threat')
     )
+      await this.npcStatBlocksService?.replace(
+        characterId,
+        body.npcStatBlock ?? {},
+        true,
+      );
+    if (current.kind === 'npc' && nextNpcMode === 'narrative') {
       await this.npcStatBlocksService?.clear(characterId);
+      await this.db
+        .delete(campaignCharacterStates)
+        .where(eq(campaignCharacterStates.characterId, characterId));
+    }
     if (
       body.imageAssetId !== undefined &&
       body.imageAssetId !== current.imageAssetId
@@ -993,61 +1052,52 @@ export class CharactersService {
   async updateCampaignState(
     userId: string,
     characterId: string,
-    body: Partial<{
-      currentHp: number;
-      currentSan: number;
-      currentEp: number;
-      conditions: string;
-      temporaryEffects: string;
-    }>,
-  ): Promise<void> {
+    body: unknown,
+  ): Promise<CampaignPlayStateDto> {
     const character = await this.getAccessibleCharacter(userId, characterId);
-    if (character.kind !== 'pc') {
-      throw new BadRequestException(
-        'Only Player Characters have campaign play state',
-      );
-    }
-    if (character.ownerUserId !== userId)
-      throw new ForbiddenException(
-        'Only the sheet owner can edit campaign state',
-      );
-    if (!character.campaignId)
-      throw new BadRequestException('Character is not in a campaign');
-    if (character.status !== 'active')
-      throw new ConflictException(
-        'Only active Campaign Characters can change campaign state',
-      );
-    await this.ensureCanAccessCampaignState(userId, character);
-    for (const [name, value] of Object.entries({
-      currentHp: body.currentHp,
-      currentSan: body.currentSan,
-      currentEp: body.currentEp,
-    })) {
-      if (value === undefined) continue;
-      if (!Number.isInteger(value) || value < 0)
-        throw new BadRequestException(`${name} must be a non-negative integer`);
-    }
-    const [current] = await this.db
-      .select()
-      .from(campaignCharacterStates)
-      .where(eq(campaignCharacterStates.characterId, characterId));
-    const state = {
-      currentHp: body.currentHp ?? current?.currentHp ?? character.maxHp ?? 0,
-      currentSan:
-        body.currentSan ?? current?.currentSan ?? character.maxSan ?? 0,
-      currentEp: body.currentEp ?? current?.currentEp ?? character.maxEp ?? 0,
-      conditions: body.conditions ?? current?.conditions ?? '',
-      temporaryEffects:
-        body.temporaryEffects ?? current?.temporaryEffects ?? '',
+    await this.ensureCanEditCampaignState(userId, character);
+    const maximums = await this.getCampaignResourceMaximums(character);
+    const applicableResources = this.getApplicableCampaignResources(character);
+    const patch = normalizeCampaignStatePatch(
+      parseCampaignStatePatch(
+        body,
+        applicableResources,
+        character.kind === 'pc',
+      ),
+      maximums,
+    );
+    const now = new Date().toISOString();
+    const insertState = {
+      characterId,
+      currentHp: patch.currentHp ?? maximums.currentHp,
+      currentSan: patch.currentSan ?? maximums.currentSan,
+      currentEp: patch.currentEp ?? maximums.currentEp,
+      conditions: patch.conditions ?? '',
+      temporaryEffects: patch.temporaryEffects ?? '',
+      updatedAt: now,
+    };
+    const updateState = {
+      updatedAt: now,
+      ...(patch.currentHp !== undefined ? { currentHp: patch.currentHp } : {}),
+      ...(patch.currentSan !== undefined
+        ? { currentSan: patch.currentSan }
+        : {}),
+      ...(patch.currentEp !== undefined ? { currentEp: patch.currentEp } : {}),
+      ...(patch.conditions !== undefined
+        ? { conditions: patch.conditions }
+        : {}),
+      ...(patch.temporaryEffects !== undefined
+        ? { temporaryEffects: patch.temporaryEffects }
+        : {}),
     };
     await this.db
       .insert(campaignCharacterStates)
-      .values({ characterId, ...state })
+      .values(insertState)
       .onConflictDoUpdate({
         target: campaignCharacterStates.characterId,
-        set: { ...state, updatedAt: new Date().toISOString() },
+        set: updateState,
       });
-    // TODO(live-events): emit a post-transaction play-state update event.
+    return this.getCampaignPlayState(userId, characterId);
   }
 
   async getCampaignPlayState(
@@ -1055,31 +1105,61 @@ export class CharactersService {
     characterId: string,
   ): Promise<CampaignPlayStateDto> {
     const character = await this.getAccessibleCharacter(userId, characterId);
-    if (character.kind !== 'pc') {
-      throw new BadRequestException(
-        'Only Player Characters have campaign play state',
-      );
-    }
+    if (character.kind === 'npc' && character.npcMode !== 'threat')
+      throw new BadRequestException('Narrative NPCs do not have play state');
     if (!character.campaignId)
       throw new BadRequestException('Character is not in a campaign');
     await this.ensureCanAccessCampaignState(userId, character);
-    const [[state], inventory] = await Promise.all([
+    const maximums = await this.getCampaignResourceMaximums(character);
+    const [[state], inventory, ritualRows, catalog] = await Promise.all([
       this.db
         .select()
         .from(campaignCharacterStates)
         .where(eq(campaignCharacterStates.characterId, characterId)),
-      this.db
-        .select()
-        .from(characterInventory)
-        .where(eq(characterInventory.characterId, characterId)),
+      character.kind === 'pc'
+        ? this.db
+            .select()
+            .from(characterInventory)
+            .where(eq(characterInventory.characterId, characterId))
+        : Promise.resolve([]),
+      character.kind === 'pc'
+        ? this.db
+            .select()
+            .from(campaignCharacterRituals)
+            .where(eq(campaignCharacterRituals.characterId, characterId))
+        : Promise.resolve([]),
+      character.kind === 'pc'
+        ? this.rulesService.getCatalog(character.rulesetVersion)
+        : Promise.resolve(null),
     ]);
     return {
-      currentHp: state?.currentHp ?? character.maxHp ?? 0,
-      currentSan: state?.currentSan ?? character.maxSan ?? 0,
-      currentEp: state?.currentEp ?? character.maxEp ?? 0,
+      currentHp: state?.currentHp ?? maximums.currentHp,
+      maxHp: maximums.currentHp,
+      currentSan:
+        character.kind === 'npc'
+          ? null
+          : (state?.currentSan ?? maximums.currentSan),
+      maxSan: character.kind === 'npc' ? null : maximums.currentSan,
+      currentEp:
+        character.kind === 'npc'
+          ? null
+          : (state?.currentEp ?? maximums.currentEp),
+      maxEp: character.kind === 'npc' ? null : maximums.currentEp,
       conditions: state?.conditions ?? '',
       temporaryEffects: state?.temporaryEffects ?? '',
       gmNotes: state?.gmNotes ?? null,
+      updatedAt: state?.updatedAt ?? character.updatedAt,
+      rituals: ritualRows.map((ritual) => {
+        const option = catalog?.rituals.find(
+          (candidate) => candidate.slug === ritual.ritualSlug,
+        );
+        return {
+          slug: ritual.ritualSlug,
+          name: option?.name ?? ritual.ritualSlug,
+          rank: ritual.rank,
+          maxRank: option?.maxRank ?? ritual.rank,
+        };
+      }),
       inventory: inventory.map((entry) => ({
         id: entry.id,
         itemId: entry.itemId ?? null,
@@ -1091,6 +1171,66 @@ export class CharactersService {
         createdAt: entry.createdAt,
       })),
     };
+  }
+
+  async putCampaignRitual(
+    userId: string,
+    characterId: string,
+    ritualSlug: string,
+    body: { rank?: unknown },
+  ): Promise<{ slug: string; name: string; rank: number; maxRank: number }> {
+    const character = await this.getAccessibleCharacter(userId, characterId);
+    await this.ensureCanManageCampaignRituals(userId, character);
+    if (!ritualSlug.trim()) throw new BadRequestException('Ritual is required');
+    if (!body || Object.keys(body).length !== 1 || !('rank' in body))
+      throw new BadRequestException('A ritual update requires only rank');
+    const rank = body.rank;
+    if (typeof rank !== 'number' || !Number.isInteger(rank))
+      throw new BadRequestException('rank must be an integer');
+
+    const catalog = await this.rulesService.getCatalog(
+      character.rulesetVersion,
+    );
+    const option = this.getValidCampaignRitual(
+      catalog,
+      character.characterClass,
+      character.nex,
+      ritualSlug,
+      rank,
+    );
+    await this.db
+      .insert(campaignCharacterRituals)
+      .values({ characterId, ritualSlug: option.slug, rank })
+      .onConflictDoUpdate({
+        target: [
+          campaignCharacterRituals.characterId,
+          campaignCharacterRituals.ritualSlug,
+        ],
+        set: { rank },
+      });
+    return {
+      slug: option.slug,
+      name: option.name,
+      rank,
+      maxRank: option.maxRank,
+    };
+  }
+
+  async deleteCampaignRitual(
+    userId: string,
+    characterId: string,
+    ritualSlug: string,
+  ): Promise<void> {
+    const character = await this.getAccessibleCharacter(userId, characterId);
+    await this.ensureCanManageCampaignRituals(userId, character);
+    await this.db
+      .delete(campaignCharacterRituals)
+      .where(
+        and(
+          eq(campaignCharacterRituals.characterId, characterId),
+          eq(campaignCharacterRituals.ritualSlug, ritualSlug),
+        ),
+      );
   }
 
   async addInventoryItem(
@@ -1231,39 +1371,190 @@ export class CharactersService {
     userId: string,
     character: typeof characters.$inferSelect,
   ): Promise<void> {
-    if (character.ownerUserId === userId) {
-      const [membership] = await this.db
-        .select({ userId: campaignMembers.userId })
-        .from(campaignMembers)
-        .where(
-          and(
-            eq(campaignMembers.campaignId, character.campaignId!),
-            eq(campaignMembers.userId, userId),
-          ),
+    if (!(await this.canViewCampaignState(userId, character)))
+      throw new ForbiddenException('Cannot access this campaign play state');
+  }
+
+  private async ensureCanEditCampaignState(
+    userId: string,
+    character: typeof characters.$inferSelect,
+  ): Promise<void> {
+    if (!character.campaignId)
+      throw new BadRequestException('Character is not in a campaign');
+    if (character.kind === 'pc') {
+      if (character.ownerUserId !== userId)
+        throw new ForbiddenException(
+          'Only the sheet owner can edit campaign state',
         );
-      if (membership) return;
+      if (character.status !== 'active')
+        throw new ConflictException(
+          'Only active Campaign Characters can change campaign state',
+        );
+      if (!(await this.hasCampaignMembership(userId, character.campaignId)))
+        throw new ForbiddenException(
+          'Join the campaign to edit campaign state',
+        );
+      return;
     }
+    if (character.npcMode !== 'threat')
+      throw new BadRequestException('Narrative NPCs do not have play state');
     await this.ensureManager(userId, character.campaignId);
+    if (character.status !== 'active')
+      throw new ConflictException(
+        'Only active Campaign NPCs can change campaign state',
+      );
+  }
+
+  private async ensureCanManageCampaignRituals(
+    userId: string,
+    character: typeof characters.$inferSelect,
+  ): Promise<void> {
+    if (character.kind !== 'pc' || !character.campaignId)
+      throw new BadRequestException(
+        'Only Campaign Characters can manage campaign rituals',
+      );
+    if (character.ownerUserId !== userId)
+      throw new ForbiddenException(
+        'Only the sheet owner can manage campaign rituals',
+      );
+    if (character.status !== 'active')
+      throw new ConflictException(
+        'Only active Campaign Characters can manage campaign rituals',
+      );
+    if (!(await this.hasCampaignMembership(userId, character.campaignId)))
+      throw new ForbiddenException('Join the campaign to manage rituals');
+  }
+
+  private getApplicableCampaignResources(
+    character: typeof characters.$inferSelect,
+  ): CampaignResourceKey[] {
+    return character.kind === 'pc'
+      ? ['currentHp', 'currentSan', 'currentEp']
+      : ['currentHp'];
+  }
+
+  private async getCampaignResourceMaximums(
+    character: typeof characters.$inferSelect,
+  ): Promise<CampaignResourceMaximums> {
+    if (character.kind === 'pc')
+      return {
+        currentHp: character.maxHp ?? 0,
+        currentSan: character.maxSan ?? 0,
+        currentEp: character.maxEp ?? 0,
+      };
+    const [statBlock] = await this.db
+      .select({ hp: npcStatBlocks.hp })
+      .from(npcStatBlocks)
+      .where(eq(npcStatBlocks.characterId, character.id));
+    if (!statBlock)
+      throw new ConflictException('Threat NPC does not have a stat block');
+    return { currentHp: statBlock.hp, currentSan: 0, currentEp: 0 };
+  }
+
+  private async hasCampaignMembership(
+    userId: string,
+    campaignId: string,
+  ): Promise<boolean> {
+    const [membership] = await this.db
+      .select({ userId: campaignMembers.userId })
+      .from(campaignMembers)
+      .where(
+        and(
+          eq(campaignMembers.campaignId, campaignId),
+          eq(campaignMembers.userId, userId),
+        ),
+      );
+    return Boolean(membership);
   }
 
   private async canViewCampaignState(
     userId: string,
     character: typeof characters.$inferSelect,
   ): Promise<boolean> {
+    if (!character.campaignId) return false;
+    if (character.kind === 'npc')
+      return (
+        character.npcMode === 'threat' &&
+        (await this.isCampaignManager(userId, character.campaignId))
+      );
     if (await this.isCampaignManager(userId, character.campaignId!))
       return true;
     if (character.status !== 'active' || character.ownerUserId !== userId)
       return false;
-    const [membership] = await this.db
-      .select({ userId: campaignMembers.userId })
-      .from(campaignMembers)
-      .where(
-        and(
-          eq(campaignMembers.campaignId, character.campaignId!),
-          eq(campaignMembers.userId, userId),
-        ),
+    return this.hasCampaignMembership(userId, character.campaignId);
+  }
+
+  private getCampaignRitualConflict(
+    catalog: RulesetCatalog,
+    characterClass: string | null,
+    nex: number,
+    ritualSlug: string,
+    rank: number,
+  ): { message: string } | null {
+    const ritual = catalog.rituals.find((option) => option.slug === ritualSlug);
+    if (!ritual) return { message: `Ritual inválido: ${ritualSlug}` };
+    if (ritual.minNex > nex)
+      return { message: `O ritual ${ritual.name} exige NEX ${ritual.minNex}%` };
+    if (ritual.requiredClassSlug && ritual.requiredClassSlug !== characterClass)
+      return {
+        message: `O ritual ${ritual.name} exige a classe ${ritual.requiredClassSlug}`,
+      };
+    if (!Number.isInteger(rank) || rank < 1 || rank > ritual.maxRank)
+      return {
+        message: `O grau de ${ritual.name} deve ser de 1 a ${ritual.maxRank}`,
+      };
+    return null;
+  }
+
+  private getValidCampaignRitual(
+    catalog: RulesetCatalog,
+    characterClass: string | null,
+    nex: number,
+    ritualSlug: string,
+    rank: number,
+  ) {
+    const conflict = this.getCampaignRitualConflict(
+      catalog,
+      characterClass,
+      nex,
+      ritualSlug,
+      rank,
+    );
+    if (conflict) throw new BadRequestException(conflict.message);
+    const ritual = catalog.rituals.find((option) => option.slug === ritualSlug);
+    if (!ritual) throw new BadRequestException('Ritual inválido');
+    return ritual;
+  }
+
+  private async getCampaignRitualConflicts(
+    characterId: string,
+    catalog: RulesetCatalog,
+    characterClass: string | null,
+    nex: number,
+  ): Promise<CharacterEditDraftDto['conflicts']> {
+    const rituals = await this.db
+      .select()
+      .from(campaignCharacterRituals)
+      .where(eq(campaignCharacterRituals.characterId, characterId));
+    return rituals.flatMap((ritual) => {
+      const conflict = this.getCampaignRitualConflict(
+        catalog,
+        characterClass,
+        nex,
+        ritual.ritualSlug,
+        ritual.rank,
       );
-    return Boolean(membership);
+      return conflict
+        ? [
+            {
+              code: 'INVALID_CAMPAIGN_RITUAL',
+              field: 'rituals',
+              optionId: ritual.ritualSlug,
+              message: conflict.message,
+            },
+          ]
+        : [];
+    });
   }
 
   private ensureName(name: string | undefined): asserts name is string {
@@ -1586,6 +1877,7 @@ export class CharactersService {
         canViewCampaignState: false,
         canEditPermanentData: false,
         canEditPlayState: false,
+        canManageRituals: false,
         canManageInventory: false,
       },
       hasEditDraft: false,
@@ -1630,14 +1922,14 @@ export class CharactersService {
       try {
         await this.ensureManager(userId, row.campaignId);
         isCampaignManager = true;
-        canManageInventory = row.status === 'active';
+        canManageInventory = row.kind === 'pc' && row.status === 'active';
       } catch {
         /* no inventory permission */
       }
     }
     const dto = this.toDto(row, includeOwnerMetadata);
     const canViewCampaignState =
-      row.kind === 'pc' && Boolean(row.campaignId) && userId
+      Boolean(row.campaignId) && userId
         ? await this.canViewCampaignState(userId, row)
         : false;
     return {
@@ -1654,10 +1946,15 @@ export class CharactersService {
           (isOwner && row.kind === 'pc' && row.status === 'active') ||
           (isCampaignManager && row.kind === 'npc' && row.status === 'active'),
         canEditPlayState:
+          row.status === 'active' &&
+          ((isOwner && row.kind === 'pc' && canViewCampaignState) ||
+            (isCampaignManager &&
+              row.kind === 'npc' &&
+              row.npcMode === 'threat')),
+        canManageRituals:
           isOwner &&
           row.kind === 'pc' &&
           canViewCampaignState &&
-          isOwner &&
           row.status === 'active',
         canManageInventory,
       },

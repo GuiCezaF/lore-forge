@@ -1,8 +1,9 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 import { DATABASE } from '../database/database.constants';
 import type { Database } from '../database/database.types';
 import {
+  campaignCharacterStates,
   npcAbilities,
   npcAttacks,
   npcResistances,
@@ -38,7 +39,11 @@ export class NpcStatBlocksService {
     return { statBlock: statBlock ?? null, attacks, resistances, abilities };
   }
 
-  async replace(characterId: string, input: NpcStatBlockInput): Promise<void> {
+  async replace(
+    characterId: string,
+    input: NpcStatBlockInput,
+    shouldSyncCampaignState = false,
+  ): Promise<void> {
     const numbers = {
       threatLevel: input.threatLevel ?? 0,
       hp: input.hp ?? 1,
@@ -80,6 +85,7 @@ export class NpcStatBlocksService {
       );
     const size = input.size?.trim() || 'medium';
     await this.db.transaction(async (tx) => {
+      const now = new Date().toISOString();
       await tx
         .insert(npcStatBlocks)
         .values({
@@ -88,7 +94,7 @@ export class NpcStatBlocksService {
           size,
           senses: input.senses?.trim() || null,
           notes: input.notes?.trim() || null,
-          updatedAt: new Date().toISOString(),
+          updatedAt: now,
         })
         .onConflictDoUpdate({
           target: npcStatBlocks.characterId,
@@ -97,9 +103,27 @@ export class NpcStatBlocksService {
             size,
             senses: input.senses?.trim() || null,
             notes: input.notes?.trim() || null,
-            updatedAt: new Date().toISOString(),
+            updatedAt: now,
           },
         });
+      if (shouldSyncCampaignState) {
+        await tx
+          .insert(campaignCharacterStates)
+          .values({
+            characterId,
+            currentHp: numbers.hp,
+            currentSan: 0,
+            currentEp: 0,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: campaignCharacterStates.characterId,
+            set: {
+              currentHp: sql`least(${campaignCharacterStates.currentHp}, ${numbers.hp})`,
+              updatedAt: now,
+            },
+          });
+      }
       await Promise.all([
         tx.delete(npcAttacks).where(eq(npcAttacks.characterId, characterId)),
         tx
@@ -110,36 +134,32 @@ export class NpcStatBlocksService {
           .where(eq(npcAbilities.characterId, characterId)),
       ]);
       if (attacks.length)
-        await tx
-          .insert(npcAttacks)
-          .values(
-            attacks.map((entry, sortOrder) => ({
-              characterId,
-              name: entry.name.trim(),
-              test: entry.test?.trim() || null,
-              damage: entry.damage?.trim() || null,
-              range: entry.range?.trim() || null,
-              critical: entry.critical?.trim() || null,
-              effect: entry.effect?.trim() || null,
-              sortOrder,
-            })),
-          );
+        await tx.insert(npcAttacks).values(
+          attacks.map((entry, sortOrder) => ({
+            characterId,
+            name: entry.name.trim(),
+            test: entry.test?.trim() || null,
+            damage: entry.damage?.trim() || null,
+            range: entry.range?.trim() || null,
+            critical: entry.critical?.trim() || null,
+            effect: entry.effect?.trim() || null,
+            sortOrder,
+          })),
+        );
       if (resistances.length)
         await tx
           .insert(npcResistances)
           .values(resistances.map((entry) => ({ characterId, ...entry })));
       if (abilities.length)
-        await tx
-          .insert(npcAbilities)
-          .values(
-            abilities.map((entry, sortOrder) => ({
-              characterId,
-              name: entry.name.trim(),
-              description: entry.description.trim(),
-              actionCost: entry.actionCost?.trim() || null,
-              sortOrder,
-            })),
-          );
+        await tx.insert(npcAbilities).values(
+          abilities.map((entry, sortOrder) => ({
+            characterId,
+            name: entry.name.trim(),
+            description: entry.description.trim(),
+            actionCost: entry.actionCost?.trim() || null,
+            sortOrder,
+          })),
+        );
     });
   }
 

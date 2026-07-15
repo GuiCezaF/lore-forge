@@ -718,6 +718,20 @@ export const campaignCharacterStates = pgTable('campaign_character_states', {
     .defaultNow(),
 });
 
+export const campaignCharacterRituals = pgTable(
+  'campaign_character_rituals',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    ritualSlug: text('ritual_slug').notNull(),
+    rank: integer('rank').notNull(),
+  },
+  (table) => ({
+    primaryKey: primaryKey({ columns: [table.characterId, table.ritualSlug] }),
+  }),
+);
+
 export const characterInventory = pgTable(
   'character_inventory',
   {

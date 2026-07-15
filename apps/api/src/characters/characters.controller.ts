@@ -14,6 +14,8 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -21,6 +23,10 @@ import {
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CampaignPlayStateDto } from './campaign-play-state.dto';
+import { CampaignRitualDto } from './campaign-ritual.dto';
+import { UpdateCampaignPlayStateDto } from './update-campaign-play-state.dto';
+import { UpdateCampaignRitualDto } from './update-campaign-ritual.dto';
 import { CharactersService } from './characters.service';
 
 @Controller('characters')
@@ -199,6 +205,7 @@ export class CharactersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtém estado e inventário exclusivos da campanha' })
+  @ApiOkResponse({ type: CampaignPlayStateDto })
   playState(
     @CurrentUser() user: AuthUser,
     @Param('characterId') characterId: string,
@@ -221,17 +228,57 @@ export class CharactersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Atualiza o estado de jogo da própria ficha na campanha',
+    summary: 'Atualiza recursos e efeitos do estado jogável na campanha',
   })
-  async updatePlayState(
+  @ApiBody({ type: UpdateCampaignPlayStateDto })
+  @ApiOkResponse({ type: CampaignPlayStateDto })
+  updatePlayState(
     @CurrentUser() user: AuthUser,
     @Param('characterId') characterId: string,
-    @Body() body: any,
-  ): Promise<void> {
-    await this.charactersService.updateCampaignState(
+    @Body() body: UpdateCampaignPlayStateDto,
+  ) {
+    return this.charactersService.updateCampaignState(
       user.id,
       characterId,
       body,
+    );
+  }
+
+  @Put(':characterId/rituals/:ritualSlug')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Inclui ou atualiza um ritual da campanha' })
+  @ApiBody({ type: UpdateCampaignRitualDto })
+  @ApiOkResponse({ type: CampaignRitualDto })
+  putCampaignRitual(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+    @Param('ritualSlug') ritualSlug: string,
+    @Body() body: UpdateCampaignRitualDto,
+  ) {
+    return this.charactersService.putCampaignRitual(
+      user.id,
+      characterId,
+      ritualSlug,
+      body,
+    );
+  }
+
+  @Delete(':characterId/rituals/:ritualSlug')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove um ritual da campanha' })
+  @ApiNoContentResponse({ description: 'Ritual removido' })
+  async deleteCampaignRitual(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+    @Param('ritualSlug') ritualSlug: string,
+  ): Promise<void> {
+    await this.charactersService.deleteCampaignRitual(
+      user.id,
+      characterId,
+      ritualSlug,
     );
   }
 

@@ -25,11 +25,28 @@ const derivedLabels = {
   movement: "movement",
   carryCapacity: "carryCapacity",
 } as const;
-const stateLabels = {
-  currentHp: "currentHp",
-  currentSan: "currentSan",
-  currentEp: "currentEp",
-} as const;
+const CAMPAIGN_STATE_POLL_INTERVAL_MS = 3_000;
+const LOW_RESOURCE_PERCENTAGE = 25;
+const resourceDefinitions = [
+  {
+    currentKey: "currentHp",
+    maximumKey: "maxHp",
+    colorClass: "bg-red-600",
+    label: "PV",
+  },
+  {
+    currentKey: "currentSan",
+    maximumKey: "maxSan",
+    colorClass: "bg-purple-600",
+    label: "SAN",
+  },
+  {
+    currentKey: "currentEp",
+    maximumKey: "maxEp",
+    colorClass: "bg-amber-500",
+    label: "PE",
+  },
+] as const;
 
 type Attributes = Record<(typeof attributeKeys)[number], number>;
 type Skill = { name: string; degree: "trained" | "veteran" | "expert" };
@@ -37,8 +54,10 @@ type Power = { name: string; rank: number };
 type Derived = Record<keyof typeof derivedLabels, number | null>;
 type Permissions = {
   canCopy: boolean;
+  canViewCampaignState: boolean;
   canEditPermanentData: boolean;
   canEditPlayState: boolean;
+  canManageRituals: boolean;
   canManageInventory: boolean;
 };
 type Character = {
@@ -62,6 +81,7 @@ type Character = {
   objective: string | null;
   playerNotes: string | null;
   imageAssetId: string | null;
+  updatedAt: string;
   attributes: Attributes;
   skills: Skill[];
   powers: Power[];
@@ -101,12 +121,17 @@ type Inventory = {
   notes: string | null;
 };
 type PlayState = {
-  currentHp: number;
-  currentSan: number;
-  currentEp: number;
+  currentHp: number | null;
+  maxHp: number | null;
+  currentSan: number | null;
+  maxSan: number | null;
+  currentEp: number | null;
+  maxEp: number | null;
   conditions: string;
   temporaryEffects: string;
   gmNotes: string | null;
+  updatedAt: string;
+  rituals: Array<{ slug: string; name: string; rank: number; maxRank: number }>;
   inventory: Inventory[];
 };
 type RulesCatalog = {
@@ -119,6 +144,13 @@ type RulesCatalog = {
   }>;
   skills: Array<{ slug: string; name: string }>;
   powers: Array<{ slug: string; name: string; maxRank: number }>;
+  rituals: Array<{
+    slug: string;
+    name: string;
+    minNex: number;
+    maxRank: number;
+    requiredClassSlug: string | null;
+  }>;
 };
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -160,6 +192,8 @@ export default function CharacterDetailPage() {
   const [error, setError] = useState("");
   const [item, setItem] = useState({ name: "", quantity: 1, notes: "" });
   const saveChain = useRef(Promise.resolve());
+  const playStateSaveChain = useRef(Promise.resolve());
+  const playStateVersion = useRef(0);
   const saveTimer = useRef<number | null>(null);
   const draftRef = useRef<EditDraft | null>(null);
 
@@ -191,14 +225,42 @@ export default function CharacterDetailPage() {
   }
 
   useEffect(() => {
-    void load();
+    const timeout = window.setTimeout(() => void load());
+    return () => window.clearTimeout(timeout);
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (draft && !rules)
+    if ((draft || character?.permissions.canManageRituals) && !rules)
       void apiFetch(`${apiUrl}/characters/ruleset`).then(async (response) => {
         if (response.ok) setRules((await response.json()) as RulesCatalog);
       });
-  }, [apiUrl, draft, rules]);
+  }, [apiUrl, character?.permissions.canManageRituals, draft, rules]);
+
+  useEffect(() => {
+    if (
+      !character?.campaignId ||
+      !character.permissions.canViewCampaignState ||
+      character.permissions.canEditPlayState ||
+      character.status !== "active"
+    )
+      return;
+    const refresh = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    const interval = window.setInterval(
+      refresh,
+      CAMPAIGN_STATE_POLL_INTERVAL_MS,
+    );
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [
+    character?.campaignId,
+    character?.permissions.canEditPlayState,
+    character?.permissions.canViewCampaignState,
+    character?.status,
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function queueSave(nextDraft: EditDraft) {
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
@@ -321,22 +383,51 @@ export default function CharacterDetailPage() {
     updateDraft((current) => ({ ...current, imageAssetId: asset.id }));
   }
 
-  async function saveState(event: FormEvent) {
-    event.preventDefault();
-    if (!playState) return;
-    const response = await apiFetch(`${apiUrl}/characters/${id}/play-state`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        currentHp: Number(playState.currentHp),
-        currentSan: Number(playState.currentSan),
-        currentEp: Number(playState.currentEp),
-        conditions: playState.conditions,
-        temporaryEffects: playState.temporaryEffects,
-      }),
-    });
+  function queuePlayStateUpdate(patch: Record<string, string | number>) {
+    const version = ++playStateVersion.current;
+    const snapshot = playState;
+    if (!snapshot) return;
+    setPlayState({ ...snapshot, ...patch });
+    const request = async () => {
+      const response = await apiFetch(`${apiUrl}/characters/${id}/play-state`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!response.ok) {
+        setError(t("ownerState"));
+        await load();
+        return;
+      }
+      const canonical = (await response.json()) as PlayState;
+      if (playStateVersion.current === version) setPlayState(canonical);
+    };
+    const chained = playStateSaveChain.current.then(request, request);
+    playStateSaveChain.current = chained.then(
+      () => undefined,
+      () => undefined,
+    );
+  }
+
+  async function putRitual(ritualSlug: string, rank: number) {
+    const response = await apiFetch(
+      `${apiUrl}/characters/${id}/rituals/${encodeURIComponent(ritualSlug)}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rank }),
+      },
+    );
     if (!response.ok) setError(t("ownerState"));
-    else void load();
+    else await load();
+  }
+  async function removeRitual(ritualSlug: string) {
+    const response = await apiFetch(
+      `${apiUrl}/characters/${id}/rituals/${encodeURIComponent(ritualSlug)}`,
+      { method: "DELETE" },
+    );
+    if (!response.ok) setError(t("ownerState"));
+    else await load();
   }
   async function addItem(event: FormEvent) {
     event.preventDefault();
@@ -462,10 +553,16 @@ export default function CharacterDetailPage() {
           character.permissions.canEditPermanentData &&
           !isArchived ? (
             <>
-              <Link href={`/characters/${character.id}/edit`} className="rounded bg-red-700 px-3 py-2 text-sm text-white">
+              <Link
+                href={`/characters/${character.id}/edit`}
+                className="rounded bg-red-700 px-3 py-2 text-sm text-white"
+              >
                 Editar NPC
               </Link>
-              <button onClick={() => void archive()} className="rounded border border-red-900 px-3 py-2 text-sm text-red-300">
+              <button
+                onClick={() => void archive()}
+                className="rounded border border-red-900 px-3 py-2 text-sm text-red-300"
+              >
                 {t("archive")}
               </button>
             </>
@@ -580,86 +677,72 @@ export default function CharacterDetailPage() {
         <ConflictList conflicts={draft.conflicts} />
       )}
       {playState && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {character.permissions.canEditPlayState && !isArchived ? (
-            <form
-              onSubmit={saveState}
-              className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-950 p-5"
-            >
-              <h2 className="font-serif text-xl text-zinc-100">{t("state")}</h2>
-              <div className="grid grid-cols-3 gap-3">
-                {(["currentHp", "currentSan", "currentEp"] as const).map(
-                  (key) => (
-                    <label
-                      key={key}
-                      className="grid gap-1 text-xs uppercase text-zinc-500"
-                    >
-                      {t(stateLabels[key])}
-                      <input
-                        type="number"
-                        value={playState[key]}
-                        onChange={(event) =>
-                          setPlayState({
-                            ...playState,
-                            [key]: Number(event.target.value),
-                          })
-                        }
-                        className="rounded border border-zinc-700 bg-zinc-900 p-2 text-sm text-white"
-                      />
-                    </label>
-                  ),
-                )}
-              </div>
-              <label className="grid gap-1 text-xs uppercase text-zinc-500">
-                {t("conditions")}
-                <textarea
-                  value={playState.conditions}
-                  onChange={(event) =>
-                    setPlayState({
-                      ...playState,
-                      conditions: event.target.value,
-                    })
-                  }
-                  className="rounded border border-zinc-700 bg-zinc-900 p-2 text-sm text-white"
-                />
-              </label>
-              <label className="grid gap-1 text-xs uppercase text-zinc-500">
-                {t("temporaryEffects")}
-                <textarea
-                  value={playState.temporaryEffects}
-                  onChange={(event) =>
-                    setPlayState({
-                      ...playState,
-                      temporaryEffects: event.target.value,
-                    })
-                  }
-                  className="rounded border border-zinc-700 bg-zinc-900 p-2 text-sm text-white"
-                />
-              </label>
-              <button className="rounded bg-zinc-700 px-3 py-2 text-sm text-white">
-                {t("saveState")}
-              </button>
-            </form>
-          ) : (
-            <section className="rounded-xl border border-zinc-800 bg-zinc-950 p-5 text-sm text-zinc-500">
-              {t("ownerState")}
-            </section>
-          )}
-          <InventoryPanel
+        <div className="space-y-6">
+          <ResourcePanel
             state={playState}
-            canManage={character.permissions.canManageInventory && !isArchived}
-            item={item}
-            setItem={setItem}
-            onAdd={addItem}
-            onRemove={removeItem}
+            canEdit={character.permissions.canEditPlayState && !isArchived}
+            onChange={queuePlayStateUpdate}
             t={t}
           />
+          {character.kind === "pc" && (
+            <div className="grid gap-6 lg:grid-cols-2">
+              <EffectsPanel
+                state={playState}
+                canEdit={character.permissions.canEditPlayState && !isArchived}
+                onChange={queuePlayStateUpdate}
+                t={t}
+              />
+              <RitualPanel
+                state={playState}
+                rules={rules}
+                characterClass={character.characterClass}
+                nex={character.nex}
+                canManage={
+                  character.permissions.canManageRituals && !isArchived
+                }
+                onPut={putRitual}
+                onRemove={removeRitual}
+              />
+              <InventoryPanel
+                state={playState}
+                canManage={
+                  character.permissions.canManageInventory && !isArchived
+                }
+                item={item}
+                setItem={setItem}
+                onAdd={addItem}
+                onRemove={removeItem}
+                t={t}
+              />
+            </div>
+          )}
         </div>
       )}
       {!character.campaignId && (
-        <p className="rounded border border-zinc-800 p-4 text-sm text-zinc-500">
-          {t("noCampaignState")}
-        </p>
+        <>
+          <ResourcePanel
+            state={{
+              currentHp: character.derived.maxHp,
+              maxHp: character.derived.maxHp,
+              currentSan: character.derived.maxSan,
+              maxSan: character.derived.maxSan,
+              currentEp: character.derived.maxEp,
+              maxEp: character.derived.maxEp,
+              conditions: "",
+              temporaryEffects: "",
+              gmNotes: null,
+              updatedAt: character.updatedAt,
+              rituals: [],
+              inventory: [],
+            }}
+            canEdit={false}
+            onChange={() => undefined}
+            t={t}
+          />
+          <p className="rounded border border-zinc-800 p-4 text-sm text-zinc-500">
+            {t("noCampaignState")}
+          </p>
+        </>
       )}
     </main>
   );
@@ -1010,6 +1093,253 @@ function ConflictList({ conflicts }: { conflicts: Conflict[] }) {
           </ul>
         </div>
       ))}
+    </section>
+  );
+}
+function ResourcePanel({
+  state,
+  canEdit,
+  onChange,
+  t,
+}: {
+  state: PlayState;
+  canEdit: boolean;
+  onChange: (patch: Record<string, number>) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <section className="rounded-xl border border-zinc-800 bg-zinc-950 p-5">
+      <h2 className="font-serif text-xl text-zinc-100">{t("state")}</h2>
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        {resourceDefinitions.map(
+          ({ currentKey, maximumKey, colorClass, label }) => {
+            const current = state[currentKey];
+            const maximum = state[maximumKey];
+            if (current === null || maximum === null) return null;
+            const percentage = maximum ? (current / maximum) * 100 : 0;
+            const status =
+              current === 0
+                ? "Crítico"
+                : percentage <= LOW_RESOURCE_PERCENTAGE
+                  ? "Baixo"
+                  : null;
+            return (
+              <div
+                key={currentKey}
+                className="rounded border border-zinc-800 p-3"
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                    {label}
+                  </span>
+                  <span className="text-sm text-zinc-100">
+                    {current} / {maximum}
+                  </span>
+                </div>
+                <div
+                  role="progressbar"
+                  aria-label={label}
+                  aria-valuemin={0}
+                  aria-valuemax={maximum}
+                  aria-valuenow={current}
+                  className="mt-2 h-3 overflow-hidden rounded bg-zinc-800"
+                >
+                  <div
+                    className={`h-full ${colorClass}`}
+                    style={{ width: `${Math.min(percentage, 100)}%` }}
+                  />
+                </div>
+                {status && (
+                  <p
+                    className={`mt-2 text-xs font-semibold ${current === 0 ? "text-red-300" : "text-amber-300"}`}
+                  >
+                    {status}
+                  </p>
+                )}
+                {canEdit ? (
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      aria-label={`Diminuir ${label}`}
+                      onClick={() =>
+                        onChange({ [currentKey]: Math.max(0, current - 1) })
+                      }
+                      className="rounded border border-zinc-700 px-2 py-1 text-sm text-zinc-100"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      min="0"
+                      max={maximum}
+                      value={current}
+                      onChange={(event) =>
+                        onChange({ [currentKey]: Number(event.target.value) })
+                      }
+                      className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-900 p-1 text-center text-sm text-white"
+                    />
+                    <button
+                      type="button"
+                      aria-label={`Aumentar ${label}`}
+                      onClick={() =>
+                        onChange({
+                          [currentKey]: Math.min(maximum, current + 1),
+                        })
+                      }
+                      className="rounded border border-zinc-700 px-2 py-1 text-sm text-zinc-100"
+                    >
+                      +
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            );
+          },
+        )}
+      </div>
+    </section>
+  );
+}
+function EffectsPanel({
+  state,
+  canEdit,
+  onChange,
+  t,
+}: {
+  state: PlayState;
+  canEdit: boolean;
+  onChange: (patch: Record<string, string>) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <section className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-950 p-5">
+      <h2 className="font-serif text-xl text-zinc-100">Efeitos e condições</h2>
+      <label className="grid gap-1 text-xs uppercase text-zinc-500">
+        {t("conditions")}
+        <textarea
+          key={`conditions-${state.updatedAt}`}
+          defaultValue={state.conditions}
+          readOnly={!canEdit}
+          onBlur={(event) =>
+            canEdit && onChange({ conditions: event.target.value })
+          }
+          className="min-h-20 rounded border border-zinc-700 bg-zinc-900 p-2 text-sm text-white"
+        />
+      </label>
+      <label className="grid gap-1 text-xs uppercase text-zinc-500">
+        {t("temporaryEffects")}
+        <textarea
+          key={`temporary-effects-${state.updatedAt}`}
+          defaultValue={state.temporaryEffects}
+          readOnly={!canEdit}
+          onBlur={(event) =>
+            canEdit && onChange({ temporaryEffects: event.target.value })
+          }
+          className="min-h-20 rounded border border-zinc-700 bg-zinc-900 p-2 text-sm text-white"
+        />
+      </label>
+    </section>
+  );
+}
+function RitualPanel({
+  state,
+  rules,
+  characterClass,
+  nex,
+  canManage,
+  onPut,
+  onRemove,
+}: {
+  state: PlayState;
+  rules: RulesCatalog | null;
+  characterClass: string | null;
+  nex: number;
+  canManage: boolean;
+  onPut: (slug: string, rank: number) => Promise<void>;
+  onRemove: (slug: string) => Promise<void>;
+}) {
+  const [selectedSlug, setSelectedSlug] = useState("");
+  const availableRituals = (rules?.rituals ?? []).filter(
+    (ritual) =>
+      ritual.minNex <= nex &&
+      (!ritual.requiredClassSlug ||
+        ritual.requiredClassSlug === characterClass),
+  );
+  const selected = availableRituals.find(
+    (ritual) => ritual.slug === selectedSlug,
+  );
+  return (
+    <section className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-950 p-5">
+      <h2 className="font-serif text-xl text-zinc-100">Rituais</h2>
+      <ul className="space-y-2">
+        {state.rituals.map((ritual) => (
+          <li
+            key={ritual.slug}
+            className="flex items-center gap-2 rounded border border-zinc-800 p-2 text-sm text-zinc-300"
+          >
+            <span className="flex-1">{ritual.name}</span>
+            {canManage ? (
+              <select
+                aria-label={`Grau de ${ritual.name}`}
+                value={ritual.rank}
+                onChange={(event) =>
+                  void onPut(ritual.slug, Number(event.target.value))
+                }
+                className="rounded bg-zinc-900 p-1"
+              >
+                {Array.from(
+                  { length: ritual.maxRank },
+                  (_, index) => index + 1,
+                ).map((rank) => (
+                  <option key={rank} value={rank}>
+                    {rank}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span>Grau {ritual.rank}</span>
+            )}
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => void onRemove(ritual.slug)}
+                className="text-xs text-red-300"
+              >
+                Remover
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {canManage && rules ? (
+        <div className="flex gap-2">
+          <select
+            value={selectedSlug}
+            onChange={(event) => setSelectedSlug(event.target.value)}
+            className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-900 p-2 text-sm text-white"
+          >
+            <option value="">Selecionar ritual</option>
+            {availableRituals
+              .filter(
+                (ritual) =>
+                  !state.rituals.some((entry) => entry.slug === ritual.slug),
+              )
+              .map((ritual) => (
+                <option key={ritual.slug} value={ritual.slug}>
+                  {ritual.name}
+                </option>
+              ))}
+          </select>
+          <button
+            type="button"
+            disabled={!selected}
+            onClick={() => selected && void onPut(selected.slug, 1)}
+            className="rounded bg-red-700 px-3 text-sm text-white disabled:opacity-40"
+          >
+            Adicionar
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }

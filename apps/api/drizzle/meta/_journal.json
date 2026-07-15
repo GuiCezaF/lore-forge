@@ -64,6 +64,13 @@
       "when": 1784145600004,
       "tag": "0008_spectator_access",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784145600005,
+      "tag": "0009_playable_campaign_characters",
+      "breakpoints": true
     }
   ]
 }
