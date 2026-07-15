@@ -84,10 +84,7 @@ export class MonstersService {
         userId,
         body.campaignId,
       );
-      const memberRole = campaign.members?.find(
-        (member) => member.userId === userId,
-      )?.role;
-      const canManage = campaign.ownerUserId === userId || memberRole === 'gm';
+      const canManage = campaign.ownerUserId === userId;
       if (!canManage) {
         throw new ForbiddenException(
           'Only the GM can create campaign monsters',
@@ -208,10 +205,7 @@ export class MonstersService {
         userId,
         targetCampaignId,
       );
-      const memberRole = campaign.members?.find(
-        (member) => member.userId === userId,
-      )?.role;
-      const canManage = campaign.ownerUserId === userId || memberRole === 'gm';
+      const canManage = campaign.ownerUserId === userId;
       if (!canManage) {
         throw new ForbiddenException(
           'Only the GM can copy monsters to campaign',
@@ -287,10 +281,7 @@ export class MonstersService {
       userId,
       row.campaignId,
     );
-    const memberRole = campaign.members?.find(
-      (member) => member.userId === userId,
-    )?.role;
-    const canManage = campaign.ownerUserId === userId || memberRole === 'gm';
+    const canManage = campaign.ownerUserId === userId;
     if (!canManage) {
       throw new ForbiddenException('You cannot edit this monster');
     }

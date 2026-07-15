@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getBrowserApiUrl } from "@/lib/api-url";
@@ -22,7 +22,7 @@ type CampaignMember = {
   shortCode: string;
   name: string;
   picture?: string;
-  role: "gm" | "player" | "spectator";
+  role: "player";
 };
 
 type CampaignDetail = Campaign & {
@@ -45,8 +45,6 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [memberShortCode, setMemberShortCode] = useState("");
-  const [memberRole, setMemberRole] = useState<CampaignMember["role"]>("player");
   const [composerOpen, setComposerOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [invitations, setInvitations] = useState<Invitation[]>([]);
@@ -90,8 +88,8 @@ export default function CampaignsPage() {
     });
     setComposerOpen(false);
     const me = currentUser;
-    const isManager = Boolean(me && (data.ownerUserId === me.id || data.members?.some((member: CampaignMember) => member.userId === me.id && member.role === "gm")));
-    if (isManager) {
+    const isOwner = Boolean(me && data.ownerUserId === me.id);
+    if (isOwner) {
       const invitationsResponse = await apiFetch(`${apiUrl}/campaigns/${campaignId}/invitations`);
       if (invitationsResponse.ok) setManagedInvitations(await invitationsResponse.json() as ManagedInvitation[]);
     } else setManagedInvitations([]);
@@ -111,7 +109,7 @@ export default function CampaignsPage() {
 
   useEffect(() => {
     if (currentUser && selectedCampaign) void loadCampaign(selectedCampaign.id);
-    // Re-read the selected campaign once the identity is available so GM-only
+    // Re-read the selected campaign once the identity is available so owner-only
     // administration data is never fetched for a player.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
@@ -120,18 +118,24 @@ export default function CampaignsPage() {
     event.preventDefault(); if (!selectedCampaign || !inviteCode.trim()) return;
     const response = await apiFetch(`${apiUrl}/campaigns/${selectedCampaign.id}/invitations`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ shortCode: inviteCode.trim() }) });
     setNotice(response.ok ? t("inviteSent") : t("inviteFailed"));
-    if (response.ok) setInviteCode("");
+    if (response.ok) {
+      setInviteCode("");
+      await loadCampaign(selectedCampaign.id);
+    }
   }
-  async function respond(invitationId: string, accepted: boolean, characterId?: string) {
-    const response = await apiFetch(`${apiUrl}/campaigns/invitations/${invitationId}/respond`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accepted, characterId }) });
+  async function respond(invitationId: string, accepted: boolean) {
+    const response = await apiFetch(`${apiUrl}/campaigns/invitations/${invitationId}/respond`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accepted }) });
     if (!response.ok) { setNotice(t("respondFailed")); return; }
-    setInvitations(current => current.filter(item => item.invitation.id !== invitationId)); setNotice(accepted ? t("joined") : t("declined")); void loadCampaigns();
+    setNotice(accepted ? t("joined") : t("declined"));
+    const invitationsResponse = await apiFetch(`${apiUrl}/campaigns/invitations/mine`);
+    if (invitationsResponse.ok) setInvitations(await invitationsResponse.json() as Invitation[]);
+    await loadCampaigns();
   }
   async function cancelInvitation(invitationId: string) {
     if (!selectedCampaign) return;
     const response = await apiFetch(`${apiUrl}/campaigns/${selectedCampaign.id}/invitations/${invitationId}`, { method: "DELETE" });
     if (!response.ok) { setNotice(t("cancelFailed")); return; }
-    setManagedInvitations(current => current.filter(invitation => invitation.id !== invitationId));
+    await loadCampaign(selectedCampaign.id);
   }
 
   async function submitCampaign(event: FormEvent<HTMLFormElement>) {
@@ -168,29 +172,6 @@ export default function CampaignsPage() {
     await loadCampaigns();
   }
 
-  async function addMember(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!selectedCampaign) {
-      return;
-    }
-
-    await fetch(`${apiUrl}/campaigns/${selectedCampaign.id}/members`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        shortCode: memberShortCode,
-        role: memberRole,
-      }),
-    });
-
-    setMemberShortCode("");
-    setMemberRole("player");
-    await loadCampaign(selectedCampaign.id);
-  }
-
   async function removeMember(memberUserId: string) {
     if (!selectedCampaign) {
       return;
@@ -206,7 +187,7 @@ export default function CampaignsPage() {
     await loadCampaign(selectedCampaign.id);
   }
 
-  const isManager = Boolean(selectedCampaign && currentUser && (selectedCampaign.ownerUserId === currentUser.id || selectedCampaign.members.some(member => member.userId === currentUser.id && member.role === "gm")));
+  const isOwner = Boolean(selectedCampaign && currentUser && selectedCampaign.ownerUserId === currentUser.id);
   const campaignNpcs = selectedCampaign ? sheets.filter(sheet => sheet.kind === "npc" && sheet.campaignId === selectedCampaign.id) : [];
   const campaignPlayers = selectedCampaign ? sheets.filter(sheet => sheet.kind === "pc" && sheet.campaignId === selectedCampaign.id) : [];
 
@@ -229,7 +210,7 @@ export default function CampaignsPage() {
       </div>
 
       {notice ? <p className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-300">{notice}</p> : null}
-      {invitations.length > 0 ? <section className="rounded-2xl border border-red-900/60 bg-red-950/10 p-5"><h2 className="font-serif text-xl text-zinc-100">{t("pending")}</h2><div className="mt-3 grid gap-3">{invitations.map(({ invitation, campaignName, invitedByName }) => <article key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-950 p-3"><div><p className="font-medium text-zinc-100">{campaignName}</p><p className="text-xs text-zinc-500">{t("invitedBy", { name: invitedByName, date: new Date(invitation.expiresAt).toLocaleDateString() })}</p><div className="mt-2 flex flex-wrap gap-2"><button onClick={() => void respond(invitation.id, true)} className="rounded bg-red-700 px-2 py-1 text-xs text-white">{t("createSheet")}</button><select onChange={event => { const value = event.target.value; if (value) void respond(invitation.id, true, value); }} defaultValue="" className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs text-zinc-200"><option value="">{t("useSheet")}</option>{sheets.filter(sheet => sheet.kind === "pc" && sheet.status !== "archived").map(sheet => <option key={sheet.id} value={sheet.id}>{sheet.name}{sheet.campaignId ? t("copyForCampaign") : ""}</option>)}</select></div></div><button onClick={() => void respond(invitation.id, false)} className="rounded border border-zinc-700 px-3 py-2 text-sm text-zinc-300">{t("decline")}</button></article>)}</div></section> : null}
+      {invitations.length > 0 ? <section className="rounded-2xl border border-red-900/60 bg-red-950/10 p-5"><h2 className="font-serif text-xl text-zinc-100">{t("pending")}</h2><div className="mt-3 grid gap-3">{invitations.map(({ invitation, campaignName, invitedByName }) => <article key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-950 p-3"><div><p className="font-medium text-zinc-100">{campaignName}</p><p className="text-xs text-zinc-500">{t("invitedBy", { name: invitedByName, date: new Date(invitation.expiresAt).toLocaleDateString() })}</p></div><div className="flex gap-2"><button type="button" onClick={() => void respond(invitation.id, true)} className="rounded bg-red-700 px-3 py-2 text-sm text-white">{t("accept")}</button><button type="button" onClick={() => void respond(invitation.id, false)} className="rounded border border-zinc-700 px-3 py-2 text-sm text-zinc-300">{t("decline")}</button></div></article>)}</div></section> : null}
 
       <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <section className="rounded-3xl border border-zinc-900 bg-zinc-950/80">
@@ -372,38 +353,15 @@ export default function CampaignsPage() {
                   {t("memberDescription")}
                 </div>
               </div>
-              {isManager ? <form onSubmit={invitePlayer} className="rounded-xl border border-zinc-800 p-4">
+              {isOwner ? <form onSubmit={invitePlayer} className="rounded-xl border border-zinc-800 p-4">
                 <p className="text-sm font-medium text-zinc-100">{t("invitePlayer")}</p>
                 <p className="mt-1 text-xs text-zinc-500">{t("inviteDescription")}</p>
                 <div className="mt-3 flex gap-2"><input required value={inviteCode} onChange={event => setInviteCode(event.target.value)} placeholder={t("shortCode")} className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-900 p-2 text-sm text-white" /><button className="rounded bg-red-700 px-3 text-sm text-white">{t("invite")}</button></div>
               </form> : null}
 
-              {isManager ? <form className="grid gap-3 sm:grid-cols-[1fr_140px_auto]" onSubmit={addMember}>
-                <input
-                  className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-                  placeholder={t("shortCode")}
-                  value={memberShortCode}
-                  onChange={(event) => setMemberShortCode(event.target.value)}
-                />
-                <select
-                  className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-                  value={memberRole}
-                  onChange={(event) =>
-                    setMemberRole(event.target.value as CampaignMember["role"])
-                  }
-                >
-                  <option value="player">{t("player")}</option>
-                  <option value="gm">{t("gm")}</option>
-                  <option value="spectator">{t("spectator")}</option>
-                </select>
-                <button className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white">
-                  {t("add")}
-                </button>
-              </form> : null}
+              {isOwner ? <section className="rounded-xl border border-zinc-800 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-medium text-zinc-100">Convites pendentes</p><p className="text-xs text-zinc-500">Apenas o dono da campanha pode cancelar um convite não respondido.</p></div></div>{managedInvitations.length ? <ul className="mt-3 space-y-2">{managedInvitations.map(invitation => <li key={invitation.id} className="flex items-center justify-between gap-3 rounded border border-zinc-800 p-2 text-sm"><span className="text-zinc-300">{invitation.invitedUserName} <span className="text-zinc-500">({invitation.invitedUserShortCode})</span></span><button type="button" onClick={() => void cancelInvitation(invitation.id)} className="text-xs text-red-300">Cancelar</button></li>)}</ul> : <p className="mt-3 text-xs text-zinc-500">Não há convites pendentes.</p>}</section> : null}
 
-              {isManager ? <section className="rounded-xl border border-zinc-800 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-medium text-zinc-100">Convites pendentes</p><p className="text-xs text-zinc-500">Apenas o Mestre pode cancelar um convite não respondido.</p></div></div>{managedInvitations.length ? <ul className="mt-3 space-y-2">{managedInvitations.map(invitation => <li key={invitation.id} className="flex items-center justify-between gap-3 rounded border border-zinc-800 p-2 text-sm"><span className="text-zinc-300">{invitation.invitedUserName} <span className="text-zinc-500">({invitation.invitedUserShortCode})</span></span><button type="button" onClick={() => void cancelInvitation(invitation.id)} className="text-xs text-red-300">Cancelar</button></li>)}</ul> : <p className="mt-3 text-xs text-zinc-500">Não há convites pendentes.</p>}</section> : null}
-
-              <section className="rounded-xl border border-zinc-800 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-medium text-zinc-100">Personagens da campanha</p><p className="text-xs text-zinc-500">O estado e o inventário pertencem apenas a esta campanha.</p></div>{isManager ? <Link href="/characters/npc/new" className="rounded border border-red-900 px-3 py-2 text-xs text-red-200">Criar NPC</Link> : null}</div><div className="mt-3 grid gap-2 sm:grid-cols-2">{campaignPlayers.map(sheet => <Link key={sheet.id} href={`/characters/${sheet.id}`} className="rounded border border-zinc-800 p-2 text-sm text-zinc-300">PJ · {sheet.name}</Link>)}{campaignNpcs.map(sheet => <Link key={sheet.id} href={`/characters/${sheet.id}`} className="rounded border border-zinc-800 p-2 text-sm text-zinc-300">NPC · {sheet.name}</Link>)}{!campaignPlayers.length && !campaignNpcs.length ? <p className="text-xs text-zinc-500">Nenhuma ficha está vinculada ainda.</p> : null}</div></section>
+              <section className="rounded-xl border border-zinc-800 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-medium text-zinc-100">Personagens da campanha</p><p className="text-xs text-zinc-500">O estado e o inventário pertencem apenas a esta campanha.</p></div>{isOwner ? <Link href="/characters/npc/new" className="rounded border border-red-900 px-3 py-2 text-xs text-red-200">Criar NPC</Link> : null}</div><div className="mt-3 grid gap-2 sm:grid-cols-2">{campaignPlayers.map(sheet => <Link key={sheet.id} href={`/characters/${sheet.id}`} className="rounded border border-zinc-800 p-2 text-sm text-zinc-300">PJ · {sheet.name}</Link>)}{campaignNpcs.map(sheet => <Link key={sheet.id} href={`/characters/${sheet.id}`} className="rounded border border-zinc-800 p-2 text-sm text-zinc-300">NPC · {sheet.name}</Link>)}{!campaignPlayers.length && !campaignNpcs.length ? <p className="text-xs text-zinc-500">Nenhuma ficha está vinculada ainda.</p> : null}</div></section>
 
               <div className="space-y-2">
                 {selectedCampaign.members.map((member) => (
@@ -414,10 +372,10 @@ export default function CampaignsPage() {
                     <div>
                       <div className="font-medium text-zinc-100">{member.name}</div>
                       <div className="text-xs text-zinc-500">
-                        {member.shortCode} · {member.role}
+                        {member.shortCode} · {t("player")}
                       </div>
                     </div>
-                    {isManager ? <button
+                    {isOwner && member.userId !== selectedCampaign.ownerUserId ? <button
                       type="button"
                       onClick={() => void removeMember(member.userId)}
                       className="inline-flex items-center gap-1 rounded-md border border-red-950/40 px-2.5 py-1 text-xs text-red-300 hover:bg-red-950/20"

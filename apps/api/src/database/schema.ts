@@ -11,10 +11,12 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export type UserRole = 'user' | 'admin';
 export type UserPlan = 'free' | 'premium';
-export type CampaignMemberRole = 'gm' | 'player' | 'spectator';
+/** Kept for response compatibility; persisted members are always players. */
+export type CampaignMemberRole = 'player';
 export type CharacterKind = 'pc' | 'npc';
 export type NpcMode = 'narrative' | 'threat';
 export type CharacterStatus = 'draft' | 'active' | 'archived';
@@ -281,7 +283,6 @@ export const campaignMembers = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    role: text('role').notNull().$type<CampaignMemberRole>().default('player'),
     joinedAt: timestamp('joined_at', { mode: 'string', withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -566,6 +567,12 @@ export const campaignInvitations = pgTable(
   (table) => ({
     campaignIdx: index('campaign_invitations_campaign_id_idx').on(table.campaignId),
     invitedUserIdx: index('campaign_invitations_invited_user_id_idx').on(table.invitedUserId),
+    pendingCampaignUserUnique: uniqueIndex('campaign_invitations_pending_campaign_user_unique')
+      .on(table.campaignId, table.invitedUserId)
+      .where(sql`status = 'pending'`),
+    pendingCapacityIdx: index('campaign_invitations_pending_capacity_idx')
+      .on(table.campaignId)
+      .where(sql`status = 'pending'`),
   }),
 );
 

@@ -611,8 +611,7 @@ export class CharactersService {
   private async ensureManager(userId: string, campaignId: string | null): Promise<void> {
     if (!campaignId) throw new BadRequestException('A campaign is required');
     const campaign = await this.campaignsService.getCampaign(userId, campaignId);
-    const role = campaign.members?.find((member) => member.userId === userId)?.role;
-    if (campaign.ownerUserId !== userId && role !== 'gm') throw new ForbiddenException('Only the GM can manage this campaign character');
+    if (campaign.ownerUserId !== userId) throw new ForbiddenException('Only the campaign owner can manage this campaign character');
   }
 
   private ensureName(name: string | undefined): asserts name is string { if (!name?.trim()) throw new BadRequestException('Character name is required'); }

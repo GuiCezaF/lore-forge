@@ -65,6 +65,25 @@ describe('CharactersService campaign ownership rules', () => {
     await expect(service.listNpcsForGm(userId)).resolves.toEqual([]);
   });
 
+  it('does not allow a legacy co-GM member to manage campaign NPCs', async () => {
+    const campaignsService = {
+      getCampaign: jest.fn().mockResolvedValue({
+        ownerUserId: '00000000-0000-4000-8000-000000000003',
+        members: [{ userId, role: 'gm' }],
+      }),
+    };
+    const service = new CharactersService(
+      createSelectDatabase([]) as never,
+      campaignsService as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(
+      service.createNpc(userId, campaignId, { name: 'Unapproved NPC' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('includes saved skills and class powers in a character detail response', async () => {
     const character = {
       id: '00000000-0000-4000-8000-000000000004',

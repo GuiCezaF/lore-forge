@@ -36,6 +36,13 @@
       "when": 1784145600000,
       "tag": "0004_character_edit_drafts",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784145600001,
+      "tag": "0005_invitation_only_membership",
+      "breakpoints": true
     }
   ]
 }

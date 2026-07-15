@@ -6,7 +6,7 @@ import { apiFetch } from "@/lib/api-client";
 import { getBrowserApiUrl } from "@/lib/api-url";
 import { useTranslations } from "next-intl";
 
-type Campaign = { id: string; name: string; ownerUserId: string | null; members?: Array<{ userId: string; role: string }> };
+type Campaign = { id: string; name: string; ownerUserId: string | null };
 type AuthUser = { id: string };
 const DRAFT_KEY = "lore-forge:npc-creator-draft:v1";
 const statFields = ["agility", "strength", "intellect", "presence", "vigor"] as const;
@@ -37,9 +37,7 @@ export default function NewNpcPage() {
           const response = await apiFetch(`${apiUrl}/campaigns/${campaign.id}`);
           return response.ok ? response.json() as Promise<Campaign> : campaign;
         }));
-        setCampaigns(details.filter((campaign) =>
-          campaign.ownerUserId === user.id || campaign.members?.some((member) => member.userId === user.id && member.role === "gm"),
-        ));
+        setCampaigns(details.filter((campaign) => campaign.ownerUserId === user.id));
       }
     })();
     const raw = sessionStorage.getItem(DRAFT_KEY); if (raw) try { const draft = JSON.parse(raw) as { values: typeof values; notes: string; preview?: string; draftId?: string }; setValues(draft.values); setNotes(draft.notes); setPreview(draft.preview ?? null); setDraftId(draft.draftId ?? null); } catch { sessionStorage.removeItem(DRAFT_KEY); }
