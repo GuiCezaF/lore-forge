@@ -165,14 +165,14 @@ export default function CampaignsPage() {
     void apiFetch(`${apiUrl}/characters`).then(async (response) => {
       if (response.ok) setSheets((await response.json()) as typeof sheets);
     });
-    void apiFetch(`${apiUrl}/npc-templates`).then(async (response) => {
+    void apiFetch(`${apiUrl}/characters/npcs`).then(async (response) => {
       if (!response.ok) return;
       const data = (await response.json()) as Array<{
         id: string;
         name: string;
         status: string;
       }>;
-      setTemplates(data.filter((template) => template.status === "active"));
+      setTemplates(data.filter((template) => template.status === "active" && !('campaignId' in template && template.campaignId)));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -424,14 +424,12 @@ export default function CampaignsPage() {
   const archivedCampaignNpcs = campaignNpcs.filter(
     (character) => character.status === "archived",
   );
-  async function addNpc(templateId: string) {
+  async function addNpc(npcId: string) {
     if (!selectedCampaign) return;
     const response = await apiFetch(
-      `${apiUrl}/campaigns/${selectedCampaign.id}/npcs`,
+      `${apiUrl}/campaigns/${selectedCampaign.id}/npcs/${npcId}`,
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateId }),
+        method: "PUT",
       },
     );
     if (!response.ok) {

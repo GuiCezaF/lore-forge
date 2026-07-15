@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { NpcTemplateEditor } from "@/app/components/npc-template-editor";
+import { NpcSheetEditor } from "@/app/components/npc-template-editor";
 import { apiFetch } from "@/lib/api-client";
 import { getBrowserApiUrl } from "@/lib/api-url";
 
@@ -19,5 +19,5 @@ export default function CampaignNpcEditPage() {
     setValue(data);
   }); }, [characterId]);
   if (!value) return null;
-  return <NpcTemplateEditor npcId={characterId} initialValues={value as never} />;
+  return <NpcSheetEditor npcId={characterId} initialValues={value as never} />;
 }

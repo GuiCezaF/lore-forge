@@ -136,6 +136,10 @@ export function ClueWorkspace({ campaignId }: ClueWorkspaceProps) {
       setDraft(nextDraft);
       setSavedDraft(nextDraft);
       setClues((current) => [clue, ...current.filter((item) => item.id !== clue.id)].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)));
+      setSelectedClue(null);
+      setDraft(emptyClueDraft);
+      setSavedDraft(emptyClueDraft);
+      setIsComposing(false);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Não foi possível salvar a pista.");
     } finally { setIsSaving(false); }

@@ -439,7 +439,6 @@ export const characters = pgTable(
     kind: text('kind').notNull().$type<CharacterKind>().default('pc'),
     status: text('status').notNull().$type<CharacterStatus>().default('draft'),
     npcMode: text('npc_mode').$type<NpcMode>(),
-    sheetLabel: text('sheet_label'),
     rulesetVersion: text('ruleset_version')
       .notNull()
       .default('op-rpg-1.3')
@@ -557,7 +556,6 @@ export const characterEditDrafts = pgTable(
       .notNull()
       .references(() => rulesets.version),
     name: text('name').notNull(),
-    sheetLabel: text('sheet_label'),
     concept: text('concept'),
     gender: text('gender'),
     age: integer('age'),

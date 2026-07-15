@@ -6,7 +6,7 @@ import { apiFetch } from "@/lib/api-client";
 import { getBrowserApiUrl } from "@/lib/api-url";
 import { useTranslations } from "next-intl";
 
-type Character = { id: string; name: string; kind: "pc" | "npc"; status: string; sheetLabel: string | null; campaignId: string | null; nex: number };
+type Character = { id: string; name: string; kind: "pc" | "npc"; status: string; campaignId: string | null; nex: number };
 
 const characterStatuses = new Set(["active", "draft", "archived", "inactive"]);
 
@@ -26,7 +26,7 @@ export default function CharactersPage() {
     });
   }, [apiUrl]);
 
-  const renderCharacter = (character: Character) => <Link key={character.id} href={`/characters/${character.id}`} className="rounded-xl border border-zinc-800 bg-zinc-950 p-5 transition hover:border-red-900"><div className="flex items-center justify-between"><span className="rounded-full border border-zinc-700 px-2 py-1 text-[10px] uppercase tracking-wider text-zinc-400">{t("pc")}</span><span className="text-xs text-zinc-500">{t("nexValue", { value: character.nex })}</span></div><h2 className="mt-4 font-serif text-xl text-zinc-100">{character.name}</h2><p className="mt-1 text-sm text-zinc-500">{character.sheetLabel ?? (character.campaignId ? t("campaignSheet") : t("unassigned"))}</p><p className="mt-4 text-xs uppercase tracking-widest text-zinc-600">{characterStatuses.has(character.status) ? t(`status.${character.status}`) : character.status}</p></Link>;
+  const renderCharacter = (character: Character) => <Link key={character.id} href={`/characters/${character.id}`} className="rounded-xl border border-zinc-800 bg-zinc-950 p-5 transition hover:border-red-900"><div className="flex items-center justify-between"><span className="rounded-full border border-zinc-700 px-2 py-1 text-[10px] uppercase tracking-wider text-zinc-400">{t("pc")}</span><span className="text-xs text-zinc-500">{t("nexValue", { value: character.nex })}</span></div><h2 className="mt-4 font-serif text-xl text-zinc-100">{character.name}</h2><p className="mt-1 text-sm text-zinc-500">{character.campaignId ? t("campaignSheet") : t("unassigned")}</p><p className="mt-4 text-xs uppercase tracking-widest text-zinc-600">{characterStatuses.has(character.status) ? t(`status.${character.status}`) : character.status}</p></Link>;
 
   return <div className="flex flex-1 flex-col gap-6 py-4">
     <div className="flex flex-wrap items-end justify-between gap-4">

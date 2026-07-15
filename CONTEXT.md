@@ -58,13 +58,9 @@ _Avoid_: Campaign inventory, automatic clue sharing
 An immutable set of game mechanics used to validate and calculate a character; LoreForge currently supports only the base Ordem Paranormal RPG 1.3 rules.
 _Avoid_: Supplement, mixed rules
 
-**NPC Template**:
-A reusable, GM-owned definition of an NPC that exists independently of any campaign.
-_Avoid_: Global NPC, campaign NPC
-
-**Campaign NPC**:
-An independently editable snapshot created from an NPC Template for use in one campaign; later changes never propagate between the template, this snapshot, or copies in other campaigns.
-_Avoid_: NPC template, shared NPC
+**NPC Sheet**:
+A GM-owned NPC sheet that may be drafted, activated, copied, and permanently attached to one campaign. Attachment uses the same record; copies start as unassigned drafts without campaign state.
+_Avoid_: NPC template, campaign snapshot
 
 ## Campaign Access
 

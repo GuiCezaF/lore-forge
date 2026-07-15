@@ -1,6 +1,5 @@
 import {
   Body,
-  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -54,6 +53,20 @@ export class CharactersController {
     return this.charactersService.listNpcsForGm(user.id);
   }
 
+  @Post('npcs/drafts')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  createNpcDraft(@CurrentUser() user: AuthUser, @Body() body: any) {
+    return this.charactersService.createNpcDraft(user.id, body);
+  }
+
+  @Post('npcs')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  createNpc(@CurrentUser() user: AuthUser, @Body() body: any) {
+    return this.charactersService.createNpcSheet(user.id, body);
+  }
+
   @Get('ruleset')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -70,11 +83,6 @@ export class CharactersController {
   @ApiOperation({ summary: 'Cria uma ficha' })
   @ApiOkResponse({ description: 'Ficha criada' })
   create(@CurrentUser() user: AuthUser, @Body() body: any) {
-    if (body.kind === 'npc') {
-      throw new BadRequestException(
-        'NPCs must be added from a published template in a campaign',
-      );
-    }
     return this.charactersService.createPlayerCharacter(user.id, body);
   }
 
@@ -83,10 +91,6 @@ export class CharactersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cria um rascunho persistido de ficha de jogador' })
   createDraft(@CurrentUser() user: AuthUser, @Body() body: any) {
-    if (body.kind === 'npc')
-      throw new BadRequestException(
-        'NPCs must be added from a published template in a campaign',
-      );
     return this.charactersService.createDraft(user.id, body);
   }
 
@@ -109,12 +113,11 @@ export class CharactersController {
   copy(
     @CurrentUser() user: AuthUser,
     @Param('characterId') characterId: string,
-    @Body() body: { sheetLabel?: string },
+    @Body() _body: undefined,
   ) {
     return this.charactersService.copyCharacter(
       user.id,
       characterId,
-      body?.sheetLabel,
     );
   }
 

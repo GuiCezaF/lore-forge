@@ -67,7 +67,6 @@ type Character = {
   status: string;
   campaignId: string | null;
   campaignName: string | null;
-  sheetLabel: string | null;
   nex: number;
   origin: string | null;
   characterClass: string | null;
@@ -157,7 +156,6 @@ type SaveStatus = "idle" | "saving" | "saved" | "error";
 function getDraftPayload(draft: EditDraft) {
   return {
     name: draft.name,
-    sheetLabel: draft.sheetLabel,
     concept: draft.concept,
     gender: draft.gender,
     age: draft.age,
@@ -452,12 +450,8 @@ export default function CharacterDetailPage() {
     else void load();
   }
   async function copy() {
-    const label = window.prompt(t("copyPrompt"), character?.sheetLabel ?? "");
-    if (label === null) return;
     const response = await apiFetch(`${apiUrl}/characters/${id}/copy`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sheetLabel: label }),
     });
     if (response.ok) router.push("/characters");
     else setError(t("ownerCopy"));
@@ -718,32 +712,7 @@ export default function CharacterDetailPage() {
           )}
         </div>
       )}
-      {!character.campaignId && (
-        <>
-          <ResourcePanel
-            state={{
-              currentHp: character.derived.maxHp,
-              maxHp: character.derived.maxHp,
-              currentSan: character.derived.maxSan,
-              maxSan: character.derived.maxSan,
-              currentEp: character.derived.maxEp,
-              maxEp: character.derived.maxEp,
-              conditions: "",
-              temporaryEffects: "",
-              gmNotes: null,
-              updatedAt: character.updatedAt,
-              rituals: [],
-              inventory: [],
-            }}
-            canEdit={false}
-            onChange={() => undefined}
-            t={t}
-          />
-          <p className="rounded border border-zinc-800 p-4 text-sm text-zinc-500">
-            {t("noCampaignState")}
-          </p>
-        </>
-      )}
+      {!character.campaignId && <p className="rounded border border-zinc-800 p-4 text-sm text-zinc-500">{t("noCampaignState")}</p>}
     </main>
   );
 }
@@ -806,12 +775,6 @@ function SheetTab({
             value={character.name}
             editable={editable}
             onChange={(value) => set("name", value)}
-          />
-          <Field
-            label={t("privateLabel")}
-            value={character.sheetLabel ?? ""}
-            editable={editable}
-            onChange={(value) => set("sheetLabel", value || null)}
           />
           <SelectField
             label={t("origin")}

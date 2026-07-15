@@ -106,39 +106,21 @@ export class CampaignsController {
     return this.campaignsService.createCampaign(user.id, body);
   }
 
-  @Post(':campaignId/npcs')
+  @Put(':campaignId/npcs/:npcId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Adiciona à campanha um snapshot de um modelo de NPC publicado',
+    summary: 'Vincula uma ficha de NPC ativa à campanha',
   })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['templateId'],
-      properties: { templateId: { type: 'string', format: 'uuid' } },
-      additionalProperties: false,
-    },
-  })
-  @ApiOkResponse({ description: 'Campaign NPC criado' })
+  @ApiOkResponse({ description: 'NPC vinculado' })
   addNpc(
     @CurrentUser() user: AuthUser,
     @Param('campaignId') campaignId: string,
-    @Body() body: unknown,
+    @Param('npcId') npcId: string,
   ) {
     this.validateUuid(campaignId);
-    if (
-      !this.isRecord(body) ||
-      typeof body.templateId !== 'string' ||
-      !UUID_PATTERN.test(body.templateId) ||
-      Object.keys(body).length !== 1
-    )
-      throw new BadRequestException('templateId must be a UUID');
-    return this.campaignsService.createNpcSnapshot(
-      user.id,
-      campaignId,
-      body.templateId,
-    );
+    this.validateUuid(npcId);
+    return this.campaignsService.attachNpc(user.id, campaignId, npcId);
   }
 
   @Get(':campaignId')

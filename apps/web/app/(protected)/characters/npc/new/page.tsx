@@ -1,2 +1,2 @@
-import { NpcTemplateEditor } from "@/app/components/npc-template-editor";
-export default function NewNpcPage() { return <NpcTemplateEditor />; }
+import { NpcSheetEditor } from "@/app/components/npc-template-editor";
+export default function NewNpcPage() { return <NpcSheetEditor />; }

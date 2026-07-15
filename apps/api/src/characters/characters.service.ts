@@ -61,7 +61,6 @@ export interface CharacterDto {
   kind: CharacterKind;
   status: CharacterStatus;
   npcMode: NpcMode | null;
-  sheetLabel: string | null;
   rulesetVersion: string;
   name: string;
   concept: string | null;
@@ -115,7 +114,6 @@ export interface CharacterEditDraftDto {
   characterId: string;
   rulesetVersion: string;
   name: string;
-  sheetLabel: string | null;
   concept: string | null;
   gender: string | null;
   age: number | null;
@@ -179,7 +177,6 @@ export interface CampaignPlayStateDto {
 
 export type CharacterInput = {
   name: string;
-  sheetLabel?: string | null;
   concept?: string | null;
   gender?: string | null;
   age?: number | null;
@@ -281,6 +278,10 @@ export class CharactersService {
       .where(and(eq(characters.kind, 'npc'), isNull(characters.deletedAt)));
     const manageable: typeof rows = [];
     for (const row of rows) {
+      if (row.ownerUserId === userId && !row.campaignId) {
+        manageable.push(row);
+        continue;
+      }
       if (!row.campaignId) continue;
       try {
         await this.ensureManager(userId, row.campaignId);
@@ -320,7 +321,6 @@ export class CharactersService {
         ownerUserId: userId,
         kind: 'pc',
         status: body.status ?? 'draft',
-        sheetLabel: body.sheetLabel?.trim() || null,
         rulesetVersion: DEFAULT_RULESET_VERSION,
         name: body.name.trim(),
         concept: body.concept?.trim() || null,
@@ -346,10 +346,6 @@ export class CharactersService {
     userId: string,
     body: Partial<CharacterInput> = {},
   ): Promise<CharacterDto> {
-    if ((body as { kind?: CharacterKind }).kind === 'npc')
-      throw new BadRequestException(
-        'NPCs must be added from a published template in a campaign',
-      );
     return this.createPlayerCharacter(userId, {
       ...body,
       name: body.name?.trim() || 'Untitled agent',
@@ -357,20 +353,18 @@ export class CharactersService {
     });
   }
 
-  async createNpc(
+  async createNpcSheet(
     userId: string,
-    campaignId: string,
     body: CharacterInput & { npcMode?: NpcMode },
   ): Promise<CharacterDto> {
     this.ensureName(body.name);
-    await this.ensureManager(userId, campaignId);
     await this.ensureOwnedImageAsset(userId, body.imageAssetId);
     const attributes = this.getAttributes(body);
     const [row] = await this.db
       .insert(characters)
       .values({
         ownerUserId: userId,
-        campaignId,
+        campaignId: null,
         kind: 'npc',
         status: body.status ?? 'active',
         npcMode: body.npcMode ?? 'narrative',
@@ -391,6 +385,25 @@ export class CharactersService {
     return this.toDto(row);
   }
 
+  /** @deprecated Campaign NPCs are now created independently and attached once. */
+  async createNpc(
+    userId: string,
+    campaignId: string,
+    body: CharacterInput & { npcMode?: NpcMode },
+  ): Promise<CharacterDto> {
+    await this.ensureManager(userId, campaignId);
+    return this.createNpcSheet(userId, body);
+  }
+
+  async createNpcDraft(userId: string, body: Partial<CharacterInput> = {}) {
+    return this.createNpcSheet(userId, {
+      ...body,
+      name: body.name?.trim() || 'Untitled NPC',
+      status: 'draft',
+      npcMode: body.npcMode ?? 'narrative',
+    });
+  }
+
   async saveDraft(
     userId: string,
     characterId: string,
@@ -402,8 +415,8 @@ export class CharactersService {
     }
     if (current.kind === 'pc' && current.ownerUserId !== userId)
       throw new ForbiddenException('Only the sheet owner can save this draft');
-    if (current.kind === 'npc')
-      await this.ensureManager(userId, current.campaignId);
+    if (current.kind === 'npc' && current.ownerUserId !== userId)
+      throw new ForbiddenException('Only the sheet owner can save this NPC draft');
     return this.updateCharacter(userId, characterId, {
       ...body,
       name: body.name ?? current.name,
@@ -416,8 +429,6 @@ export class CharactersService {
     characterId: string,
   ): Promise<CharacterDto> {
     const row = await this.getAccessibleCharacter(userId, characterId);
-    if (row.kind === 'npc' && !row.campaignId)
-      throw new NotFoundException('Character not found');
     return this.getCharacterDto(row, row.ownerUserId === userId, userId);
   }
 
@@ -457,7 +468,6 @@ export class CharactersService {
         characterId: character.id,
         rulesetVersion: character.rulesetVersion,
         name: character.name,
-        sheetLabel: character.sheetLabel,
         concept: character.concept,
         gender: character.gender,
         age: character.age,
@@ -509,7 +519,6 @@ export class CharactersService {
         .update(characterEditDrafts)
         .set({
           name: body.name.trim(),
-          sheetLabel: body.sheetLabel?.trim() || null,
           concept: body.concept?.trim() || null,
           gender: body.gender?.trim() || null,
           age: body.age ?? null,
@@ -601,7 +610,6 @@ export class CharactersService {
         .update(characters)
         .set({
           name: draft.name,
-          sheetLabel: draft.sheetLabel,
           concept: draft.concept,
           gender: draft.gender,
           age: draft.age,
@@ -708,8 +716,6 @@ export class CharactersService {
     body: CharacterInput,
   ): Promise<CharacterDto> {
     const current = await this.getAccessibleCharacter(userId, characterId);
-    if (current.kind === 'npc' && !current.campaignId)
-      throw new NotFoundException('Character not found');
     if (current.kind === 'pc' && current.ownerUserId !== userId)
       throw new ForbiddenException(
         'Only the sheet owner can edit a Player Character',
@@ -732,8 +738,8 @@ export class CharactersService {
       throw new ConflictException(
         'Active Player Characters must be edited through a revision',
       );
-    if (current.kind === 'npc')
-      await this.ensureManager(userId, current.campaignId);
+    if (current.kind === 'npc' && current.ownerUserId !== userId)
+      throw new ForbiddenException('Only the sheet owner can edit this NPC');
     if (current.kind === 'npc' && current.status === 'archived')
       throw new ConflictException('Archived Campaign NPCs are read-only');
     if (body.imageAssetId !== undefined)
@@ -771,10 +777,6 @@ export class CharactersService {
       .update(characters)
       .set({
         name: body.name?.trim() || current.name,
-        sheetLabel:
-          body.sheetLabel === undefined
-            ? current.sheetLabel
-            : body.sheetLabel?.trim() || null,
         concept:
           body.concept === undefined
             ? current.concept
@@ -911,12 +913,11 @@ export class CharactersService {
   async copyCharacter(
     userId: string,
     characterId: string,
-    sheetLabel?: string,
   ): Promise<CharacterDto> {
     const source = await this.getAccessibleCharacter(userId, characterId);
-    if (source.kind !== 'pc' || source.ownerUserId !== userId) {
+    if (source.ownerUserId !== userId) {
       throw new ForbiddenException(
-        'Only the sheet owner can copy a Player Character',
+        'Only the sheet owner can copy a character',
       );
     }
     const now = new Date().toISOString();
@@ -926,12 +927,12 @@ export class CharactersService {
         .values({
           ownerUserId: userId,
           sourceCharacterId: source.id,
-          kind: 'pc',
+          kind: source.kind,
           // A copy is deliberately unassigned. Campaign state and inventory never
           // cross this boundary.
           campaignId: null,
           status: 'draft',
-          sheetLabel: sheetLabel?.trim() || source.sheetLabel,
+          npcMode: source.npcMode,
           rulesetVersion: source.rulesetVersion,
           name: source.name,
           concept: source.concept,
@@ -995,6 +996,18 @@ export class CharactersService {
             }),
           ),
         );
+      if (source.kind === 'npc') {
+        const [[block], attacks, resistances, abilities] = await Promise.all([
+          tx.select().from(npcStatBlocks).where(eq(npcStatBlocks.characterId, source.id)),
+          tx.select().from(npcAttacks).where(eq(npcAttacks.characterId, source.id)),
+          tx.select().from(npcResistances).where(eq(npcResistances.characterId, source.id)),
+          tx.select().from(npcAbilities).where(eq(npcAbilities.characterId, source.id)),
+        ]);
+        if (block) await tx.insert(npcStatBlocks).values({ ...block, characterId: created.id, updatedAt: now });
+        if (attacks.length) await tx.insert(npcAttacks).values(attacks.map(({ id: _id, characterId: _characterId, ...entry }) => ({ ...entry, characterId: created.id })));
+        if (resistances.length) await tx.insert(npcResistances).values(resistances.map(({ id: _id, characterId: _characterId, ...entry }) => ({ ...entry, characterId: created.id })));
+        if (abilities.length) await tx.insert(npcAbilities).values(abilities.map(({ id: _id, characterId: _characterId, ...entry }) => ({ ...entry, characterId: created.id })));
+      }
       return created;
     });
     return this.toDto(copy);
@@ -1834,7 +1847,6 @@ export class CharactersService {
       kind: row.kind,
       status: row.status,
       npcMode: row.npcMode ?? null,
-      sheetLabel: includeOwnerMetadata ? (row.sheetLabel ?? null) : null,
       rulesetVersion: row.rulesetVersion,
       name: row.name,
       concept: row.concept ?? null,
@@ -2030,7 +2042,6 @@ export class CharactersService {
       characterId: draft.characterId,
       rulesetVersion: draft.rulesetVersion,
       name: draft.name,
-      sheetLabel: draft.sheetLabel ?? null,
       concept: draft.concept ?? null,
       gender: draft.gender ?? null,
       age: draft.age ?? null,
