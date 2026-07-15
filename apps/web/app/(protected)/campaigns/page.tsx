@@ -353,6 +353,7 @@ export default function CampaignsPage() {
                   {t("memberDescription")}
                 </div>
               </div>
+              {isOwner ? <Link href={`/campaigns/${selectedCampaign.id}/clues`} className="inline-flex rounded border border-red-900 px-3 py-2 text-xs text-red-200 hover:bg-red-950/20">Gerenciar pistas</Link> : null}
               {isOwner ? <form onSubmit={invitePlayer} className="rounded-xl border border-zinc-800 p-4">
                 <p className="text-sm font-medium text-zinc-100">{t("invitePlayer")}</p>
                 <p className="mt-1 text-xs text-zinc-500">{t("inviteDescription")}</p>

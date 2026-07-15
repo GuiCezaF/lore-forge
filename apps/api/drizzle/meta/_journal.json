@@ -43,6 +43,13 @@
       "when": 1784145600001,
       "tag": "0005_invitation_only_membership",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784145600002,
+      "tag": "0006_campaign_clues",
+      "breakpoints": true
     }
   ]
 }

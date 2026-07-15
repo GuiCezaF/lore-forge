@@ -32,3 +32,55 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+.clue-editor-content > :first-child,
+.clue-document-body > :first-child {
+  margin-top: 0;
+}
+
+.clue-editor-content p,
+.clue-document-body p {
+  margin: 0.8rem 0;
+}
+
+.clue-editor-content h1,
+.clue-document-body h1 { font-size: 1.65rem; }
+.clue-editor-content h2,
+.clue-document-body h2 { font-size: 1.35rem; }
+.clue-editor-content h3,
+.clue-document-body h3 { font-size: 1.15rem; }
+.clue-editor-content h1,
+.clue-editor-content h2,
+.clue-editor-content h3,
+.clue-document-body h1,
+.clue-document-body h2,
+.clue-document-body h3 { margin: 1.2rem 0 0.6rem; font-weight: 700; }
+.clue-editor-content ul, .clue-editor-content ol, .clue-document-body ul, .clue-document-body ol { margin: 0.8rem 0; padding-left: 1.5rem; }
+.clue-editor-content ul, .clue-document-body ul { list-style: disc; }
+.clue-editor-content ol, .clue-document-body ol { list-style: decimal; }
+.clue-editor-content blockquote, .clue-document-body blockquote { margin: 1rem 0; border-left: 3px solid currentColor; padding-left: 1rem; opacity: 0.8; }
+.clue-editor-content hr, .clue-document-body hr { margin: 1.5rem 0; border: 0; border-top: 1px solid currentColor; opacity: 0.35; }
+
+.clue-document {
+  position: relative;
+  min-height: 28rem;
+  overflow-wrap: anywhere;
+  padding: clamp(1.5rem, 5vw, 3.5rem);
+  color: #2d241d;
+}
+
+.clue-document__title { margin: 0 0 2rem; font-size: clamp(1.7rem, 4vw, 2.5rem); line-height: 1.1; }
+.clue-document--plain-document { background: #f5efdf; font-family: Georgia, "Times New Roman", serif; }
+.clue-document--handwritten-letter { background: #f2dfbc; font-family: "Bradley Hand", "Segoe Print", cursive; line-height: 1.7; }
+.clue-document--typewritten-report { background: #e8e8e4; font-family: var(--font-mono); color: #202124; }
+.clue-document--newspaper-clipping { background: #e6dfcc; font-family: Georgia, "Times New Roman", serif; }
+.clue-document--newspaper-clipping .clue-document__title { border-bottom: 4px double #2d241d; padding-bottom: .5rem; text-align: center; text-transform: uppercase; }
+.clue-document--newspaper-clipping .clue-document-body { column-count: 2; column-gap: 2rem; }
+.clue-document--newspaper-clipping .clue-document-body > * { break-inside: avoid; }
+.clue-document--confidential-dossier { background: #d8c496; border-top: 1rem solid #8b7350; font-family: Arial, sans-serif; }
+.clue-document--confidential-dossier .clue-document__title { border-bottom: 1px solid #716044; padding-bottom: 1rem; }
+.clue-document__stamp { position: absolute; top: 1.2rem; right: 1.2rem; border: 3px solid #7c2d12; color: #7c2d12; padding: .25rem .5rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; transform: rotate(-8deg); }
+
+@media (max-width: 640px) {
+  .clue-document--newspaper-clipping .clue-document-body { column-count: 1; }
+}

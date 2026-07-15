@@ -23,6 +23,13 @@ export type CharacterStatus = 'draft' | 'active' | 'archived';
 export type InvitationStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired';
 export type EntityScope = 'system' | 'user' | 'campaign';
 export type ItemKind = 'item' | 'document';
+export type CampaignClueKind = 'text';
+export type CampaignClueStyle =
+  | 'plain-document'
+  | 'handwritten-letter'
+  | 'typewritten-report'
+  | 'newspaper-clipping'
+  | 'confidential-dossier';
 export type RuleOptionKind = 'power' | 'ritual';
 
 /** Versioned, data-driven game rules. Character sheets pin `rulesetVersion`. */
@@ -291,6 +298,30 @@ export const campaignMembers = pgTable(
     pk: primaryKey({ columns: [table.campaignId, table.userId] }),
     campaignIdx: index('campaign_members_campaign_id_idx').on(table.campaignId),
     userIdx: index('campaign_members_user_id_idx').on(table.userId),
+  }),
+);
+
+export const campaignClues = pgTable(
+  'campaign_clues',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    campaignId: uuid('campaign_id')
+      .notNull()
+      .references(() => campaigns.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull().$type<CampaignClueKind>().default('text'),
+    gmLabel: text('gm_label').notNull(),
+    title: text('title'),
+    privateNotes: text('private_notes'),
+    content: jsonb('content').notNull().$type<Record<string, unknown>>(),
+    style: text('style')
+      .notNull()
+      .$type<CampaignClueStyle>()
+      .default('plain-document'),
+    createdAt: timestamp('created_at', { mode: 'string', withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'string', withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    campaignUpdatedIdx: index('campaign_clues_campaign_updated_at_idx').on(table.campaignId, table.updatedAt),
   }),
 );
 
@@ -656,6 +687,8 @@ export type CampaignRow = typeof campaigns.$inferSelect;
 export type NewCampaignRow = typeof campaigns.$inferInsert;
 export type CampaignMemberRow = typeof campaignMembers.$inferSelect;
 export type NewCampaignMemberRow = typeof campaignMembers.$inferInsert;
+export type CampaignClueRow = typeof campaignClues.$inferSelect;
+export type NewCampaignClueRow = typeof campaignClues.$inferInsert;
 export type CharacterRow = typeof characters.$inferSelect;
 export type NewCharacterRow = typeof characters.$inferInsert;
 export type CharacterEditDraftRow = typeof characterEditDrafts.$inferSelect;
