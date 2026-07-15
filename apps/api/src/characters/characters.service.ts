@@ -380,7 +380,7 @@ export class CharactersService {
       await this.npcStatBlocksService?.replace(
         row.id,
         body.npcStatBlock ?? {},
-        true,
+        false,
       );
     return this.toDto(row);
   }
@@ -1003,7 +1003,10 @@ export class CharactersService {
           tx.select().from(npcResistances).where(eq(npcResistances.characterId, source.id)),
           tx.select().from(npcAbilities).where(eq(npcAbilities.characterId, source.id)),
         ]);
-        if (block) await tx.insert(npcStatBlocks).values({ ...block, characterId: created.id, updatedAt: now });
+        if (block) {
+          const { characterId: _characterId, ...statBlock } = block;
+          await tx.insert(npcStatBlocks).values({ ...statBlock, characterId: created.id, updatedAt: now });
+        }
         if (attacks.length) await tx.insert(npcAttacks).values(attacks.map(({ id: _id, characterId: _characterId, ...entry }) => ({ ...entry, characterId: created.id })));
         if (resistances.length) await tx.insert(npcResistances).values(resistances.map(({ id: _id, characterId: _characterId, ...entry }) => ({ ...entry, characterId: created.id })));
         if (abilities.length) await tx.insert(npcAbilities).values(abilities.map(({ id: _id, characterId: _characterId, ...entry }) => ({ ...entry, characterId: created.id })));
