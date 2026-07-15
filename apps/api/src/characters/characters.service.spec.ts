@@ -123,13 +123,30 @@ describe('CharactersService campaign ownership rules', () => {
     const detailDatabase = {
       select: jest.fn((fields?: unknown) => ({
         from: jest.fn(() => ({
-          where: jest.fn(() => fields
-            ? { orderBy: jest.fn().mockResolvedValue(
-              'degree' in (fields as Record<string, unknown>)
-                ? [{ name: 'ciencia', degree: 'trained' }]
-                : [{ category: 'power', name: 'golpe-pesado', rank: 1 }, { category: 'ritual', name: 'cicatrizacao', rank: 1 }],
-            ) }
-            : Promise.resolve([character])),
+          where: jest.fn(() =>
+            fields
+              ? 'id' in (fields as Record<string, unknown>)
+                ? Promise.resolve([])
+                : {
+                    orderBy: jest.fn().mockResolvedValue(
+                      'degree' in (fields as Record<string, unknown>)
+                        ? [{ name: 'ciencia', degree: 'trained' }]
+                        : [
+                            {
+                              category: 'power',
+                              name: 'golpe-pesado',
+                              rank: 1,
+                            },
+                            {
+                              category: 'ritual',
+                              name: 'cicatrizacao',
+                              rank: 1,
+                            },
+                          ],
+                    ),
+                  }
+              : Promise.resolve([character]),
+          ),
         })),
       })),
     };
@@ -140,7 +157,9 @@ describe('CharactersService campaign ownership rules', () => {
       {} as never,
     );
 
-    await expect(service.getCharacter(userId, character.id)).resolves.toMatchObject({
+    await expect(
+      service.getCharacter(userId, character.id),
+    ).resolves.toMatchObject({
       skills: [{ name: 'ciencia', degree: 'trained' }],
       powers: [{ name: 'golpe-pesado', rank: 1 }],
     });
@@ -160,8 +179,9 @@ describe('CharactersService campaign ownership rules', () => {
       {} as never,
     );
 
-    await expect(service.createNpc(userId, campaignId, { name: 'Unapproved NPC' }))
-      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.createNpc(userId, campaignId, { name: 'Unapproved NPC' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('does not expose campaign play state for NPCs', async () => {
@@ -179,7 +199,8 @@ describe('CharactersService campaign ownership rules', () => {
       {} as never,
     );
 
-    await expect(service.getCampaignPlayState(userId, npc.id))
-      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.getCampaignPlayState(userId, npc.id),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
