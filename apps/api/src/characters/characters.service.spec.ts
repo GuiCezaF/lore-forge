@@ -65,6 +65,25 @@ describe('CharactersService campaign ownership rules', () => {
     await expect(service.listNpcsForGm(userId)).resolves.toEqual([]);
   });
 
+  it('does not allow a legacy co-GM member to manage campaign NPCs', async () => {
+    const campaignsService = {
+      getCampaign: jest.fn().mockResolvedValue({
+        ownerUserId: '00000000-0000-4000-8000-000000000003',
+        members: [{ userId, role: 'gm' }],
+      }),
+    };
+    const service = new CharactersService(
+      createSelectDatabase([]) as never,
+      campaignsService as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(
+      service.createNpc(userId, campaignId, { name: 'Unapproved NPC' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('includes saved skills and class powers in a character detail response', async () => {
     const character = {
       id: '00000000-0000-4000-8000-000000000004',
@@ -104,13 +123,30 @@ describe('CharactersService campaign ownership rules', () => {
     const detailDatabase = {
       select: jest.fn((fields?: unknown) => ({
         from: jest.fn(() => ({
-          where: jest.fn(() => fields
-            ? { orderBy: jest.fn().mockResolvedValue(
-              'degree' in (fields as Record<string, unknown>)
-                ? [{ name: 'ciencia', degree: 'trained' }]
-                : [{ category: 'power', name: 'golpe-pesado', rank: 1 }, { category: 'ritual', name: 'cicatrizacao', rank: 1 }],
-            ) }
-            : Promise.resolve([character])),
+          where: jest.fn(() =>
+            fields
+              ? 'id' in (fields as Record<string, unknown>)
+                ? Promise.resolve([])
+                : {
+                    orderBy: jest.fn().mockResolvedValue(
+                      'degree' in (fields as Record<string, unknown>)
+                        ? [{ name: 'ciencia', degree: 'trained' }]
+                        : [
+                            {
+                              category: 'power',
+                              name: 'golpe-pesado',
+                              rank: 1,
+                            },
+                            {
+                              category: 'ritual',
+                              name: 'cicatrizacao',
+                              rank: 1,
+                            },
+                          ],
+                    ),
+                  }
+              : Promise.resolve([character]),
+          ),
         })),
       })),
     };
@@ -121,7 +157,9 @@ describe('CharactersService campaign ownership rules', () => {
       {} as never,
     );
 
-    await expect(service.getCharacter(userId, character.id)).resolves.toMatchObject({
+    await expect(
+      service.getCharacter(userId, character.id),
+    ).resolves.toMatchObject({
       skills: [{ name: 'ciencia', degree: 'trained' }],
       powers: [{ name: 'golpe-pesado', rank: 1 }],
     });
@@ -141,8 +179,9 @@ describe('CharactersService campaign ownership rules', () => {
       {} as never,
     );
 
-    await expect(service.createNpc(userId, campaignId, { name: 'Unapproved NPC' }))
-      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.createNpc(userId, campaignId, { name: 'Unapproved NPC' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('does not expose campaign play state for NPCs', async () => {
@@ -160,7 +199,8 @@ describe('CharactersService campaign ownership rules', () => {
       {} as never,
     );
 
-    await expect(service.getCampaignPlayState(userId, npc.id))
-      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.getCampaignPlayState(userId, npc.id),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

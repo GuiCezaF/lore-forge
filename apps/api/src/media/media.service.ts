@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { getEnvironment } from '../config/environment';
 import { DATABASE } from '../database/database.constants';
 import type { Database } from '../database/database.types';
-import { campaigns, characters, items, mediaAssets, monsters } from '../database/schema';
+import { campaigns, characterEditDrafts, characters, items, mediaAssets, monsters } from '../database/schema';
 import { eq } from 'drizzle-orm';
 
 export interface UploadedAsset {
@@ -165,12 +165,13 @@ export class MediaService {
   }
 
   private async hasReferences(assetId: string): Promise<boolean> {
-    const [characterReference, itemReference, monsterReference, campaignReference] = await Promise.all([
+    const [characterReference, editDraftReference, itemReference, monsterReference, campaignReference] = await Promise.all([
       this.db.select({ id: characters.id }).from(characters).where(eq(characters.imageAssetId, assetId)).limit(1),
+      this.db.select({ id: characterEditDrafts.id }).from(characterEditDrafts).where(eq(characterEditDrafts.imageAssetId, assetId)).limit(1),
       this.db.select({ id: items.id }).from(items).where(eq(items.imageAssetId, assetId)).limit(1),
       this.db.select({ id: monsters.id }).from(monsters).where(eq(monsters.imageAssetId, assetId)).limit(1),
       this.db.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.coverImageAssetId, assetId)).limit(1),
     ]);
-    return Boolean(characterReference.length || itemReference.length || monsterReference.length || campaignReference.length);
+    return Boolean(characterReference.length || editDraftReference.length || itemReference.length || monsterReference.length || campaignReference.length);
   }
 }

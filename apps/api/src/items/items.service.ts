@@ -89,10 +89,7 @@ export class ItemsService {
         userId,
         body.campaignId,
       );
-      const memberRole = campaign.members?.find(
-        (member) => member.userId === userId,
-      )?.role;
-      const canManage = campaign.ownerUserId === userId || memberRole === 'gm';
+      const canManage = campaign.ownerUserId === userId;
       if (!canManage) {
         throw new ForbiddenException('Only the GM can create campaign items');
       }
@@ -211,10 +208,7 @@ export class ItemsService {
         userId,
         targetCampaignId,
       );
-      const memberRole = campaign.members?.find(
-        (member) => member.userId === userId,
-      )?.role;
-      const canManage = campaign.ownerUserId === userId || memberRole === 'gm';
+      const canManage = campaign.ownerUserId === userId;
       if (!canManage) {
         throw new ForbiddenException('Only the GM can copy items to campaign');
       }
@@ -289,10 +283,7 @@ export class ItemsService {
       userId,
       row.campaignId,
     );
-    const memberRole = campaign.members?.find(
-      (member) => member.userId === userId,
-    )?.role;
-    const canManage = campaign.ownerUserId === userId || memberRole === 'gm';
+    const canManage = campaign.ownerUserId === userId;
     if (!canManage) {
       throw new ForbiddenException('You cannot edit this item');
     }

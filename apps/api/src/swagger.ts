@@ -15,6 +15,7 @@ export function setupSwagger(app: INestApplication): void {
     .addTag('monsters')
     .addTag('items')
     .addTag('media')
+    .addTag('spectator-access')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

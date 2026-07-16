@@ -1,24 +1,30 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, inArray, isNull, lt } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { DATABASE } from '../database/database.constants';
 import type { Database } from '../database/database.types';
 import {
   campaignMembers,
+  campaignSpectatorAccess,
   campaignInvitations,
   campaigns,
-  characterSelections,
-  characterSkills,
+  campaignCharacterStates,
   characters,
   users,
   type CampaignMemberRole,
+  npcAbilities,
+  npcAttacks,
+  npcResistances,
+  npcStatBlocks,
 } from '../database/schema';
 import { UsersService } from '../users/users.service';
+import { CampaignCharactersService } from './campaign-characters.service';
 
 export interface CampaignMemberDto {
   userId: string;
@@ -26,6 +32,16 @@ export interface CampaignMemberDto {
   name: string;
   picture?: string;
   role: CampaignMemberRole;
+}
+
+export interface CampaignCharacterSummaryDto {
+  id: string;
+  ownerUserId: string | null;
+  name: string;
+  status: string;
+  archiveReason: string | null;
+  campaignAttachedAt: string | null;
+  statusChangedAt: string;
 }
 
 export interface CampaignDto {
@@ -38,6 +54,7 @@ export interface CampaignDto {
   updatedAt: string;
   deletedAt?: string | null;
   members?: CampaignMemberDto[];
+  characters?: CampaignCharacterSummaryDto[];
 }
 
 @Injectable()
@@ -45,6 +62,7 @@ export class CampaignsService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly usersService: UsersService,
+    private readonly campaignCharactersService: CampaignCharactersService,
   ) {}
 
   async listMyCampaigns(userId: string): Promise<CampaignDto[]> {
@@ -105,13 +123,134 @@ export class CampaignsService {
       })
       .returning();
 
-    await this.db.insert(campaignMembers).values({
-      campaignId: campaign.id,
-      userId,
-      role: 'gm',
-    });
-
     return this.toCampaignDto(campaign);
+  }
+
+  async attachNpc(userId: string, campaignId: string, npcId: string) {
+    const access = await this.getCampaignAccess(userId, campaignId);
+    if (!access) throw new NotFoundException('Campaign not found');
+    if (!access.isManager) throw new ForbiddenException('Only the GM can add NPCs');
+    return this.db.transaction(async (tx) => {
+      const [npc] = await tx.select().from(characters).where(and(eq(characters.id, npcId), eq(characters.ownerUserId, userId), eq(characters.kind, 'npc'), eq(characters.status, 'active'), isNull(characters.deletedAt))).for('update');
+      if (!npc) throw new NotFoundException('Active NPC sheet not found');
+      if (npc.campaignId && npc.campaignId !== campaignId) throw new ConflictException('An NPC cannot move to another campaign');
+      if (npc.campaignId === campaignId) return npc;
+      const now = new Date().toISOString();
+      const [attached] = await tx.update(characters).set({ campaignId, campaignAttachedAt: now, updatedAt: now }).where(eq(characters.id, npc.id)).returning();
+      if (attached.npcMode === 'threat') await tx.insert(campaignCharacterStates).values({ characterId: attached.id, currentHp: 0, currentSan: 0, currentEp: 0 }).onConflictDoNothing();
+      return attached;
+    });
+  }
+
+  async createNpcSnapshot(
+    userId: string,
+    campaignId: string,
+    templateId: string,
+  ) {
+    const access = await this.getCampaignAccess(userId, campaignId);
+    if (!access) throw new NotFoundException('Campaign not found');
+    if (!access.isManager)
+      throw new ForbiddenException('Only the GM can add Campaign NPCs');
+
+    return this.db.transaction(async (tx) => {
+      const [template] = await tx
+        .select()
+        .from(characters)
+        .where(
+          and(
+            eq(characters.id, templateId),
+            eq(characters.ownerUserId, userId),
+            eq(characters.kind, 'npc'),
+            eq(characters.status, 'active'),
+            isNull(characters.campaignId),
+            isNull(characters.deletedAt),
+          ),
+        );
+      if (!template)
+        throw new NotFoundException('Published NPC template not found');
+      const now = new Date().toISOString();
+      const [snapshot] = await tx
+        .insert(characters)
+        .values({
+          ownerUserId: userId,
+          campaignId,
+          sourceCharacterId: template.id,
+          kind: 'npc',
+          status: 'active',
+          npcMode: template.npcMode,
+          rulesetVersion: template.rulesetVersion,
+          name: template.name,
+          concept: template.concept,
+          gender: template.gender,
+          age: template.age,
+          appearance: template.appearance,
+          personality: template.personality,
+          history: template.history,
+          objective: template.objective,
+          playerNotes: template.playerNotes,
+          origin: template.origin,
+          characterClass: template.characterClass,
+          path: template.path,
+          nex: template.nex,
+          agility: template.agility,
+          strength: template.strength,
+          intellect: template.intellect,
+          presence: template.presence,
+          vigor: template.vigor,
+          imageAssetId: template.imageAssetId,
+          statusChangedAt: now,
+          updatedAt: now,
+        })
+        .returning();
+      const [[block], attacks, resistances, abilities] = await Promise.all([
+        tx
+          .select()
+          .from(npcStatBlocks)
+          .where(eq(npcStatBlocks.characterId, template.id)),
+        tx
+          .select()
+          .from(npcAttacks)
+          .where(eq(npcAttacks.characterId, template.id)),
+        tx
+          .select()
+          .from(npcResistances)
+          .where(eq(npcResistances.characterId, template.id)),
+        tx
+          .select()
+          .from(npcAbilities)
+          .where(eq(npcAbilities.characterId, template.id)),
+      ]);
+      if (block)
+        await tx.insert(npcStatBlocks).values({
+          ...block,
+          characterId: snapshot.id,
+          updatedAt: now,
+        });
+      if (attacks.length)
+        await tx.insert(npcAttacks).values(
+          attacks.map(({ id: _id, characterId: _characterId, ...entry }) => ({
+            ...entry,
+            characterId: snapshot.id,
+          })),
+        );
+      if (resistances.length)
+        await tx.insert(npcResistances).values(
+          resistances.map(
+            ({ id: _id, characterId: _characterId, ...entry }) => ({
+              ...entry,
+              characterId: snapshot.id,
+            }),
+          ),
+        );
+      if (abilities.length)
+        await tx.insert(npcAbilities).values(
+          abilities.map(({ id: _id, characterId: _characterId, ...entry }) => ({
+            ...entry,
+            characterId: snapshot.id,
+          })),
+        );
+      return snapshot;
+    });
   }
 
   async getCampaign(userId: string, campaignId: string): Promise<CampaignDto> {
@@ -126,11 +265,34 @@ export class CampaignsService {
         shortCode: users.shortCode,
         name: users.name,
         picture: users.picture,
-        role: campaignMembers.role,
       })
       .from(campaignMembers)
       .innerJoin(users, eq(users.id, campaignMembers.userId))
       .where(eq(campaignMembers.campaignId, campaignId));
+    const campaignCharacters = await this.db
+      .select({
+        id: characters.id,
+        ownerUserId: characters.ownerUserId,
+        name: characters.name,
+        status: characters.status,
+        archiveReason: characters.archiveReason,
+        campaignAttachedAt: characters.campaignAttachedAt,
+        statusChangedAt: characters.statusChangedAt,
+      })
+      .from(characters)
+      .where(
+        and(
+          eq(characters.campaignId, campaignId),
+          eq(characters.kind, 'pc'),
+          isNull(characters.deletedAt),
+          access.isManager
+            ? undefined
+            : or(
+                eq(characters.status, 'active'),
+                eq(characters.ownerUserId, userId),
+              ),
+        ),
+      );
 
     return {
       ...this.toCampaignDto(access.campaign),
@@ -139,7 +301,13 @@ export class CampaignsService {
         shortCode: member.shortCode,
         name: member.name,
         picture: member.picture ?? undefined,
-        role: member.role,
+        role: 'player',
+      })),
+      characters: campaignCharacters.map((character) => ({
+        ...character,
+        ownerUserId: character.ownerUserId ?? null,
+        archiveReason: character.archiveReason ?? null,
+        campaignAttachedAt: character.campaignAttachedAt ?? null,
       })),
     };
   }
@@ -191,57 +359,27 @@ export class CampaignsService {
     }
 
     const now = new Date().toISOString();
-    await this.db
-      .update(campaigns)
-      .set({
-        deletedAt: now,
-        updatedAt: now,
-      })
-      .where(eq(campaigns.id, campaignId));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .delete(campaignSpectatorAccess)
+        .where(eq(campaignSpectatorAccess.campaignId, campaignId));
+      await tx
+        .update(campaigns)
+        .set({ deletedAt: now, updatedAt: now })
+        .where(eq(campaigns.id, campaignId));
+      await tx
+        .update(characters)
+        .set({
+          status: 'archived',
+          archiveReason: 'campaign-deleted',
+          frozenAt: now,
+          statusChangedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(characters.campaignId, campaignId));
+    });
     // A campaign-bound sheet is historical once its campaign ends.  It stays
     // visible to its owner as an archived record and can only be copied.
-    await this.db.update(characters).set({ status: 'archived', frozenAt: now, updatedAt: now }).where(
-      and(eq(characters.campaignId, campaignId), eq(characters.kind, 'pc')),
-    );
-  }
-
-  async addMember(
-    userId: string,
-    campaignId: string,
-    body: { shortCode: string; role: CampaignMemberRole },
-  ): Promise<CampaignMemberDto> {
-    const access = await this.getCampaignAccess(userId, campaignId);
-    if (!access) {
-      throw new NotFoundException('Campaign not found');
-    }
-    if (!access.isManager) {
-      throw new ForbiddenException('Only the GM can add members');
-    }
-
-    const targetUser = await this.usersService.findPublicByShortCode(
-      body.shortCode,
-    );
-    await this.db
-      .insert(campaignMembers)
-      .values({
-        campaignId,
-        userId: targetUser.id,
-        role: body.role,
-      })
-      .onConflictDoUpdate({
-        target: [campaignMembers.campaignId, campaignMembers.userId],
-        set: {
-          role: body.role,
-        },
-      });
-
-    return {
-      userId: targetUser.id,
-      shortCode: targetUser.shortCode,
-      name: targetUser.name,
-      picture: targetUser.picture ?? undefined,
-      role: body.role,
-    };
   }
 
   async removeMember(
@@ -249,206 +387,280 @@ export class CampaignsService {
     campaignId: string,
     memberUserId: string,
   ): Promise<void> {
-    const access = await this.getCampaignAccess(userId, campaignId);
-    if (!access) {
-      throw new NotFoundException('Campaign not found');
-    }
-    if (!access.isManager) {
-      throw new ForbiddenException('Only the GM can remove members');
-    }
-
-    await this.db
-      .delete(campaignMembers)
-      .where(
-        and(
-          eq(campaignMembers.campaignId, campaignId),
-          eq(campaignMembers.userId, memberUserId),
-        ),
-      );
-    if (memberUserId !== access.campaign.ownerUserId) {
-      await this.archiveCampaignSheets(campaignId, memberUserId);
-    }
+    await this.campaignCharactersService.leaveCampaign(
+      userId,
+      campaignId,
+      memberUserId,
+    );
   }
 
   async invitePlayer(userId: string, campaignId: string, shortCode: string) {
-    const access = await this.getCampaignAccess(userId, campaignId);
-    if (!access?.isManager) throw new ForbiddenException('Only the GM can invite players');
     const player = await this.usersService.findPublicByShortCode(shortCode);
-    const [existingMember] = await this.db
-      .select({ userId: campaignMembers.userId })
-      .from(campaignMembers)
-      .where(and(
-        eq(campaignMembers.campaignId, campaignId),
-        eq(campaignMembers.userId, player.id),
-      ));
-    if (existingMember) {
-      throw new BadRequestException('This player is already a campaign member');
-    }
-    const existing = await this.db.select().from(campaignInvitations).where(and(eq(campaignInvitations.campaignId, campaignId), eq(campaignInvitations.invitedUserId, player.id), eq(campaignInvitations.status, 'pending')));
-    if (existing[0]) throw new BadRequestException('A pending invitation already exists');
-    const [invitation] = await this.db.insert(campaignInvitations).values({ campaignId, invitedUserId: player.id, invitedByUserId: userId, expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() }).returning();
-    return invitation;
+    return this.db.transaction(async (tx) => {
+      const [campaign] = await tx.execute(
+        sql`SELECT * FROM campaigns WHERE id = ${campaignId} AND deleted_at IS NULL FOR UPDATE`,
+      );
+      if (!campaign) throw new NotFoundException('Campaign not found');
+      if (campaign.owner_user_id !== userId)
+        throw new ForbiddenException(
+          'Only the campaign owner can invite players',
+        );
+      const now = new Date().toISOString();
+      await tx
+        .update(campaignInvitations)
+        .set({ status: 'expired', resolvedAt: now })
+        .where(
+          and(
+            eq(campaignInvitations.campaignId, campaignId),
+            eq(campaignInvitations.status, 'pending'),
+            lt(campaignInvitations.expiresAt, now),
+          ),
+        );
+      if (player.id === userId)
+        throw new ConflictException('The campaign owner cannot be invited');
+      const [member] = await tx
+        .select({ userId: campaignMembers.userId })
+        .from(campaignMembers)
+        .where(
+          and(
+            eq(campaignMembers.campaignId, campaignId),
+            eq(campaignMembers.userId, player.id),
+          ),
+        );
+      if (member)
+        throw new ConflictException('This player is already a campaign member');
+      const [pending] = await tx
+        .select({ id: campaignInvitations.id })
+        .from(campaignInvitations)
+        .where(
+          and(
+            eq(campaignInvitations.campaignId, campaignId),
+            eq(campaignInvitations.invitedUserId, player.id),
+            eq(campaignInvitations.status, 'pending'),
+          ),
+        );
+      if (pending)
+        throw new ConflictException('A pending invitation already exists');
+      const [members] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(campaignMembers)
+        .where(eq(campaignMembers.campaignId, campaignId));
+      const [invitations] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(campaignInvitations)
+        .where(
+          and(
+            eq(campaignInvitations.campaignId, campaignId),
+            eq(campaignInvitations.status, 'pending'),
+          ),
+        );
+      if (members.count + invitations.count >= 9)
+        throw new ConflictException('Campaign capacity is full');
+      const [invitation] = await tx
+        .insert(campaignInvitations)
+        .values({
+          campaignId,
+          invitedUserId: player.id,
+          invitedByUserId: userId,
+          expiresAt: new Date(
+            Date.now() + 14 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+        })
+        .returning();
+      return invitation;
+    });
   }
 
-  async cancelInvitation(userId: string, campaignId: string, invitationId: string): Promise<void> {
-    const access = await this.getCampaignAccess(userId, campaignId);
-    if (!access?.isManager) throw new ForbiddenException('Only the GM can cancel invitations');
-    const result = await this.db.update(campaignInvitations).set({ status: 'cancelled', resolvedAt: new Date().toISOString() }).where(and(
-      eq(campaignInvitations.id, invitationId),
-      eq(campaignInvitations.campaignId, campaignId),
-      eq(campaignInvitations.status, 'pending'),
-    )).returning({ id: campaignInvitations.id });
-    if (!result.length) throw new NotFoundException('Pending invitation not found');
+  async cancelInvitation(
+    userId: string,
+    campaignId: string,
+    invitationId: string,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const [campaign] = await tx.execute(
+        sql`SELECT * FROM campaigns WHERE id = ${campaignId} AND deleted_at IS NULL FOR UPDATE`,
+      );
+      if (!campaign) throw new NotFoundException('Campaign not found');
+      if (campaign.owner_user_id !== userId)
+        throw new ForbiddenException(
+          'Only the campaign owner can cancel invitations',
+        );
+      const now = new Date().toISOString();
+      await tx
+        .update(campaignInvitations)
+        .set({ status: 'expired', resolvedAt: now })
+        .where(
+          and(
+            eq(campaignInvitations.campaignId, campaignId),
+            eq(campaignInvitations.status, 'pending'),
+            lt(campaignInvitations.expiresAt, now),
+          ),
+        );
+      const result = await tx
+        .update(campaignInvitations)
+        .set({ status: 'cancelled', resolvedAt: now })
+        .where(
+          and(
+            eq(campaignInvitations.id, invitationId),
+            eq(campaignInvitations.campaignId, campaignId),
+            eq(campaignInvitations.status, 'pending'),
+          ),
+        )
+        .returning({ id: campaignInvitations.id });
+      if (!result.length)
+        throw new NotFoundException('Pending invitation not found');
+    });
   }
 
   async listMyInvitations(userId: string) {
     const now = new Date().toISOString();
-    await this.db.update(campaignInvitations).set({ status: 'expired', resolvedAt: now }).where(and(
-      eq(campaignInvitations.invitedUserId, userId),
-      eq(campaignInvitations.status, 'pending'),
-      lt(campaignInvitations.expiresAt, now),
-    ));
-    return this.db.select({ invitation: campaignInvitations, campaignName: campaigns.name, invitedByName: users.name }).from(campaignInvitations)
+    await this.db
+      .update(campaignInvitations)
+      .set({ status: 'expired', resolvedAt: now })
+      .where(
+        and(
+          eq(campaignInvitations.invitedUserId, userId),
+          eq(campaignInvitations.status, 'pending'),
+          lt(campaignInvitations.expiresAt, now),
+        ),
+      );
+    return this.db
+      .select({
+        invitation: campaignInvitations,
+        campaignName: campaigns.name,
+        invitedByName: users.name,
+      })
+      .from(campaignInvitations)
       .innerJoin(campaigns, eq(campaigns.id, campaignInvitations.campaignId))
       .innerJoin(users, eq(users.id, campaignInvitations.invitedByUserId))
-      .where(and(eq(campaignInvitations.invitedUserId, userId), eq(campaignInvitations.status, 'pending')));
+      .where(
+        and(
+          eq(campaignInvitations.invitedUserId, userId),
+          eq(campaignInvitations.status, 'pending'),
+        ),
+      );
   }
 
   async listCampaignInvitations(userId: string, campaignId: string) {
     const access = await this.getCampaignAccess(userId, campaignId);
-    if (!access?.isManager) throw new ForbiddenException('Only the GM can view invitations');
+    if (!access?.isManager)
+      throw new ForbiddenException('Only the GM can view invitations');
     const now = new Date().toISOString();
-    await this.db.update(campaignInvitations).set({ status: 'expired', resolvedAt: now }).where(and(
-      eq(campaignInvitations.campaignId, campaignId),
-      eq(campaignInvitations.status, 'pending'),
-      lt(campaignInvitations.expiresAt, now),
-    ));
-    return this.db.select({
-      id: campaignInvitations.id,
-      invitedUserId: campaignInvitations.invitedUserId,
-      invitedUserName: users.name,
-      invitedUserShortCode: users.shortCode,
-      expiresAt: campaignInvitations.expiresAt,
-      status: campaignInvitations.status,
-    }).from(campaignInvitations)
+    await this.db
+      .update(campaignInvitations)
+      .set({ status: 'expired', resolvedAt: now })
+      .where(
+        and(
+          eq(campaignInvitations.campaignId, campaignId),
+          eq(campaignInvitations.status, 'pending'),
+          lt(campaignInvitations.expiresAt, now),
+        ),
+      );
+    return this.db
+      .select({
+        id: campaignInvitations.id,
+        invitedUserId: campaignInvitations.invitedUserId,
+        invitedUserName: users.name,
+        invitedUserShortCode: users.shortCode,
+        expiresAt: campaignInvitations.expiresAt,
+        status: campaignInvitations.status,
+      })
+      .from(campaignInvitations)
       .innerJoin(users, eq(users.id, campaignInvitations.invitedUserId))
-      .where(and(eq(campaignInvitations.campaignId, campaignId), eq(campaignInvitations.status, 'pending')));
+      .where(
+        and(
+          eq(campaignInvitations.campaignId, campaignId),
+          eq(campaignInvitations.status, 'pending'),
+        ),
+      );
   }
 
-  async respondToInvitation(userId: string, invitationId: string, accepted: boolean, characterId?: string, newCharacter?: { name?: string; sheetLabel?: string }) {
-    const [invitation] = await this.db.select().from(campaignInvitations).where(eq(campaignInvitations.id, invitationId));
-    if (!invitation || invitation.invitedUserId !== userId || invitation.status !== 'pending') throw new NotFoundException('Invitation not found');
-    if (Date.parse(invitation.expiresAt) <= Date.now()) { await this.db.update(campaignInvitations).set({ status: 'expired', resolvedAt: new Date().toISOString() }).where(eq(campaignInvitations.id, invitationId)); throw new BadRequestException('Invitation expired'); }
-    const now = new Date().toISOString();
-    if (!accepted) {
-      await this.db.update(campaignInvitations).set({ status: 'declined', resolvedAt: now }).where(eq(campaignInvitations.id, invitationId));
-      return;
-    }
-
-    // Validate the requested sheet before resolving the invitation. A failed
-    // request must leave it pending so the player can correct their choice.
-    let selectedCharacter: typeof characters.$inferSelect | undefined;
-    if (characterId) {
-      const [character] = await this.db.select().from(characters).where(and(eq(characters.id, characterId), eq(characters.ownerUserId, userId)));
-      if (!character || character.kind !== 'pc' || character.status === 'archived') throw new BadRequestException('Select an available Player Character sheet');
-      if (character.campaignId === invitation.campaignId) {
-        throw new BadRequestException('This Player Character is already assigned to the campaign');
-      }
-      selectedCharacter = character;
-    }
-
+  async respondToInvitation(
+    userId: string,
+    invitationId: string,
+    accepted: boolean,
+  ) {
     await this.db.transaction(async (tx) => {
-      await tx.insert(campaignMembers).values({ campaignId: invitation.campaignId, userId, role: 'player' }).onConflictDoNothing();
-      if (selectedCharacter) {
-        if (!selectedCharacter.campaignId) {
-          // An unfinished sheet remains a draft after it is bound.  Promoting
-          // it here would let an invalid build bypass the finalization
-          // validation in CharactersService.
-          await tx.update(characters).set({ campaignId: invitation.campaignId, updatedAt: now }).where(eq(characters.id, selectedCharacter.id));
-        } else {
-          await this.copySheetIntoCampaign(selectedCharacter, invitation.campaignId, userId, now, tx);
-        }
-      } else {
-        await tx.insert(characters).values({
-          ownerUserId: userId, campaignId: invitation.campaignId, kind: 'pc', status: 'draft',
-          sheetLabel: newCharacter?.sheetLabel?.trim() || null,
-          name: newCharacter?.name?.trim() || 'Untitled agent', rulesetVersion: 'op-rpg-1.3', updatedAt: now,
-        });
+      const [initialInvitation] = await tx
+        .select()
+        .from(campaignInvitations)
+        .where(eq(campaignInvitations.id, invitationId));
+      if (!initialInvitation || initialInvitation.invitedUserId !== userId)
+        throw new NotFoundException('Invitation not found');
+      await tx.execute(
+        sql`SELECT id FROM campaigns WHERE id = ${initialInvitation.campaignId} FOR UPDATE`,
+      );
+      const [invitation] = await tx
+        .select()
+        .from(campaignInvitations)
+        .where(eq(campaignInvitations.id, invitationId));
+      if (
+        !invitation ||
+        invitation.invitedUserId !== userId ||
+        invitation.status !== 'pending'
+      )
+        throw new NotFoundException('Invitation not found');
+      const now = new Date().toISOString();
+      await tx
+        .update(campaignInvitations)
+        .set({ status: 'expired', resolvedAt: now })
+        .where(
+          and(
+            eq(campaignInvitations.campaignId, invitation.campaignId),
+            eq(campaignInvitations.status, 'pending'),
+            lt(campaignInvitations.expiresAt, now),
+          ),
+        );
+      const [currentInvitation] = await tx
+        .select()
+        .from(campaignInvitations)
+        .where(eq(campaignInvitations.id, invitationId));
+      if (!currentInvitation || currentInvitation.status !== 'pending')
+        throw new BadRequestException('Invitation expired');
+      if (!accepted) {
+        await tx
+          .update(campaignInvitations)
+          .set({ status: 'declined', resolvedAt: now })
+          .where(eq(campaignInvitations.id, invitationId));
+        return;
       }
-      await tx.update(campaignInvitations).set({ status: 'accepted', resolvedAt: now }).where(eq(campaignInvitations.id, invitationId));
+      const [members] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(campaignMembers)
+        .where(eq(campaignMembers.campaignId, invitation.campaignId));
+      const [pending] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(campaignInvitations)
+        .where(
+          and(
+            eq(campaignInvitations.campaignId, invitation.campaignId),
+            eq(campaignInvitations.status, 'pending'),
+          ),
+        );
+      if (members.count + pending.count > 9)
+        throw new BadRequestException('Campaign capacity is full');
+      await tx
+        .insert(campaignMembers)
+        .values({ campaignId: invitation.campaignId, userId })
+        .onConflictDoNothing();
+      await tx
+        .update(campaignInvitations)
+        .set({ status: 'accepted', resolvedAt: now })
+        .where(
+          and(
+            eq(campaignInvitations.id, invitationId),
+            eq(campaignInvitations.status, 'pending'),
+          ),
+        );
     });
   }
 
   async leaveCampaign(userId: string, campaignId: string): Promise<void> {
-    const access = await this.getCampaignAccess(userId, campaignId);
-    if (!access) throw new NotFoundException('Campaign not found');
-    if (access.campaign.ownerUserId === userId) throw new BadRequestException('The campaign owner cannot leave their campaign');
-    await this.db.delete(campaignMembers).where(and(eq(campaignMembers.campaignId, campaignId), eq(campaignMembers.userId, userId)));
-    await this.archiveCampaignSheets(campaignId, userId);
-  }
-
-  private async archiveCampaignSheets(campaignId: string, ownerUserId: string): Promise<void> {
-    const now = new Date().toISOString();
-    await this.db.update(characters).set({ status: 'archived', frozenAt: now, updatedAt: now }).where(and(
-      eq(characters.campaignId, campaignId),
-      eq(characters.ownerUserId, ownerUserId),
-      eq(characters.kind, 'pc'),
-    ));
-  }
-
-  private async copySheetIntoCampaign(
-    source: typeof characters.$inferSelect,
-    campaignId: string,
-    ownerUserId: string,
-    now: string,
-    db: Pick<Database, 'insert' | 'select'> = this.db,
-  ): Promise<void> {
-    const [copy] = await db.insert(characters).values({
-      ownerUserId,
+    await this.campaignCharactersService.leaveCampaign(
+      userId,
       campaignId,
-      sourceCharacterId: source.id,
-      kind: 'pc',
-      status: 'active',
-      sheetLabel: source.sheetLabel,
-      rulesetVersion: source.rulesetVersion,
-      name: source.name,
-      concept: source.concept,
-      gender: source.gender,
-      age: source.age,
-      appearance: source.appearance,
-      personality: source.personality,
-      history: source.history,
-      objective: source.objective,
-      playerNotes: source.playerNotes,
-      origin: source.origin,
-      characterClass: source.characterClass,
-      path: source.path,
-      nex: source.nex,
-      agility: source.agility,
-      strength: source.strength,
-      intellect: source.intellect,
-      presence: source.presence,
-      vigor: source.vigor,
-      maxHp: source.maxHp,
-      maxSan: source.maxSan,
-      maxEp: source.maxEp,
-      epLimit: source.epLimit,
-      defense: source.defense,
-      dodge: source.dodge,
-      block: source.block,
-      movement: source.movement,
-      carryCapacity: source.carryCapacity,
-      imageAssetId: source.imageAssetId,
-      updatedAt: now,
-    }).returning({ id: characters.id });
-    // This is a permanent-sheet snapshot only. Campaign state and inventory
-    // deliberately begin empty, but player selections belong to the sheet.
-    const [skills, selections] = await Promise.all([
-      db.select().from(characterSkills).where(eq(characterSkills.characterId, source.id)),
-      db.select().from(characterSelections).where(eq(characterSelections.characterId, source.id)),
-    ]);
-    if (skills.length) await db.insert(characterSkills).values(skills.map(({ id: _id, characterId: _characterId, ...skill }) => ({ ...skill, characterId: copy.id })));
-    if (selections.length) await db.insert(characterSelections).values(selections.map(({ id: _id, characterId: _characterId, ...selection }) => ({ ...selection, characterId: copy.id })));
+      userId,
+    );
   }
 
   private async getCampaignAccess(
@@ -465,7 +677,7 @@ export class CampaignsService {
     const [row] = await this.db
       .select({
         campaign: campaigns,
-        role: campaignMembers.role,
+        role: sql<CampaignMemberRole | null>`CASE WHEN ${campaignMembers.userId} IS NULL THEN NULL ELSE 'player' END`,
       })
       .from(campaigns)
       .leftJoin(
@@ -484,7 +696,7 @@ export class CampaignsService {
     return {
       campaign: row.campaign,
       role: row.role ?? null,
-      isManager: row.campaign.ownerUserId === userId || row.role === 'gm',
+      isManager: row.campaign.ownerUserId === userId,
     };
   }
 
