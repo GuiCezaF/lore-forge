@@ -330,7 +330,7 @@ export class CharactersService {
         nex,
         ...attributes,
         ...derived,
-        imageAssetId: body.imageAssetId ?? null,
+        imageAssetId: this.normalizeImageAssetId(body.imageAssetId),
       })
       .returning();
     await this.replaceBuildSelections(row.id, body);
@@ -373,7 +373,7 @@ export class CharactersService {
         concept: body.concept?.trim() || null,
         nex: body.nex ?? 5,
         ...attributes,
-        imageAssetId: body.imageAssetId ?? null,
+        imageAssetId: this.normalizeImageAssetId(body.imageAssetId),
       })
       .returning();
     if (row.npcMode === 'threat')
@@ -532,7 +532,7 @@ export class CharactersService {
           path: body.path?.trim() || null,
           nex: body.nex ?? current.nex,
           ...this.getAttributes(body),
-          imageAssetId: body.imageAssetId ?? null,
+          imageAssetId: this.normalizeImageAssetId(body.imageAssetId),
           updatedAt: now,
         })
         .where(eq(characterEditDrafts.id, current.id))
@@ -1599,6 +1599,12 @@ export class CharactersService {
     ) {
       throw new BadRequestException('Choose an image uploaded by this user');
     }
+  }
+
+  private normalizeImageAssetId(
+    imageAssetId: string | null | undefined,
+  ): string | null {
+    return imageAssetId?.trim() || null;
   }
 
   private getAttributes(
