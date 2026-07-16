@@ -863,12 +863,12 @@ export default function CampaignsPage() {
                       </div>
                     ) : (
                       <p className="text-sm text-zinc-400">
-                        Nenhum template publicado.{" "}
+                        Nenhuma ficha de NPC disponível.{" "}
                         <Link
                           className="text-red-300"
                           href="/characters/npc/new"
                         >
-                          Crie ou publique um template.
+                          Crie uma ficha de NPC.
                         </Link>
                       </p>
                     )}
