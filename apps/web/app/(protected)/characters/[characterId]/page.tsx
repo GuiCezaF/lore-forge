@@ -806,7 +806,7 @@ function SheetTab({
           />
         </div>
         <h2 className="font-serif text-xl text-zinc-100">{t("attributes")}</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(5,minmax(0,1fr))]">
           {attributeKeys.map((key) => (
             <Field
               key={key}
@@ -1397,14 +1397,14 @@ function Field({
   type?: string;
 }) {
   return (
-    <label className="grid gap-1 text-sm text-zinc-300">
+    <label className="grid min-w-0 gap-1 text-sm text-zinc-300">
       {label}
       <input
         type={type}
         value={value}
         readOnly={!editable}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded border border-zinc-700 bg-zinc-900 p-2 text-white"
+        className="min-w-0 w-full rounded border border-zinc-700 bg-zinc-900 p-2 text-white"
       />
     </label>
   );
