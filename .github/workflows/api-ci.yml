@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_ENV: test
+      DATABASE_URL: postgresql://loreforge:loreforge@localhost:5432/loreforge_test
       REDIS_URL: redis://localhost:6379
       S3_ENDPOINT: http://localhost:9000
       S3_BUCKET: loreforge-test
