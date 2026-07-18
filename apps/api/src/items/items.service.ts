@@ -88,9 +88,6 @@ export class ItemsService {
     if (!body.name.trim()) {
       throw new BadRequestException('Item name is required');
     }
-    if (body.scope === 'system') {
-      throw new ForbiddenException('System items are immutable');
-    }
     if (kind === 'document' && body.scope !== 'campaign') {
       throw new ForbiddenException('Documents can only exist inside campaigns');
     }
@@ -334,7 +331,12 @@ export class ItemsService {
       return 0;
     }
     if (value === undefined) return 0;
-    if (!Number.isInteger(value) || value < 0 || value > 9999)
+    if (
+      typeof value !== 'number' ||
+      !Number.isInteger(value) ||
+      value < 0 ||
+      value > 9999
+    )
       throw new BadRequestException(
         'space must be an integer between 0 and 9999',
       );

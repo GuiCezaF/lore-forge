@@ -829,7 +829,6 @@ export const monsters = pgTable(
     scope: text('scope').notNull().$type<EntityScope>().default('system'),
     name: text('name').notNull(),
     description: text('description'),
-    space: integer('space').notNull().default(0),
     data: jsonb('data').notNull().$type<Record<string, unknown>>().default({}),
     imageAssetId: uuid('image_asset_id').references(() => mediaAssets.id, {
       onDelete: 'set null',
@@ -866,6 +865,7 @@ export const items = pgTable(
     kind: text('kind').notNull().$type<ItemKind>().default('item'),
     name: text('name').notNull(),
     description: text('description'),
+    space: integer('space').notNull().default(0),
     data: jsonb('data').notNull().$type<Record<string, unknown>>().default({}),
     imageAssetId: uuid('image_asset_id').references(() => mediaAssets.id, {
       onDelete: 'set null',

@@ -34,12 +34,12 @@ import {
 @ApiTags('campaign-inventory')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
-@Header('Cache-Control', 'private, no-store')
 export class CampaignInventoryController {
   constructor(private readonly service: CampaignInventoryService) {}
   @Get()
   @ApiOperation({ summary: 'Lists campaign inventory and authoritative load' })
   @ApiOkResponse({ type: CampaignInventoryDto })
+  @Header('Cache-Control', 'private, no-store')
   list(
     @CurrentUser() user: AuthUser,
     @Param('characterId') characterId: string,
@@ -49,6 +49,7 @@ export class CampaignInventoryController {
   @Post()
   @ApiOperation({ summary: 'Adds a campaign inventory snapshot' })
   @ApiCreatedResponse({ type: CampaignInventoryEntryDto })
+  @Header('Cache-Control', 'private, no-store')
   create(
     @CurrentUser() user: AuthUser,
     @Param('characterId') characterId: string,
@@ -58,6 +59,7 @@ export class CampaignInventoryController {
   }
   @Patch(':inventoryId')
   @ApiOkResponse({ type: CampaignInventoryEntryDto })
+  @Header('Cache-Control', 'private, no-store')
   update(
     @CurrentUser() user: AuthUser,
     @Param('characterId') characterId: string,
@@ -69,6 +71,7 @@ export class CampaignInventoryController {
   @Delete(':inventoryId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
+  @Header('Cache-Control', 'private, no-store')
   async remove(
     @CurrentUser() user: AuthUser,
     @Param('characterId') characterId: string,

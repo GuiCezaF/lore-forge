@@ -9,6 +9,7 @@ export class CreateItemDto {
   @ApiPropertyOptional({ enum: ['user', 'campaign'] }) scope?: EntityScope;
   @ApiPropertyOptional({ enum: ['item', 'document'] }) kind?: ItemKind;
   @ApiPropertyOptional({ nullable: true }) campaignId?: string | null;
+  @ApiPropertyOptional({ nullable: true }) sourceItemId?: string | null;
   @ApiPropertyOptional() space?: number;
 }
 
