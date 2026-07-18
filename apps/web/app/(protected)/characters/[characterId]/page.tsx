@@ -800,7 +800,7 @@ function SheetTab({
           />
         </div>
         <h2 className="font-serif text-xl text-zinc-100">{t("attributes")}</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(5,minmax(0,1fr))]">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {attributeKeys.map((key) => (
             <Field
               key={key}
