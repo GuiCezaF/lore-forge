@@ -27,6 +27,12 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { AuthUser } from './auth.types';
 
+function isBypassProfile(
+  profile: string | undefined,
+): profile is 'gm' | 'player' {
+  return profile === 'gm' || profile === 'player';
+}
+
 @Controller('auth')
 @ApiTags('auth')
 export class AuthController {
@@ -107,10 +113,12 @@ export class AuthController {
         'Bypass profiles are only available in test mode',
       );
     }
-    if (profile && profile !== 'gm' && profile !== 'player') {
+    if (profile && !isBypassProfile(profile)) {
       throw new BadRequestException('Invalid bypass profile');
     }
-    const session = await this.authService.bypassLogin(profile);
+    const session = await this.authService.bypassLogin(
+      isBypassProfile(profile) ? profile : undefined,
+    );
     if (this.authService.shouldUseAuthHandoff()) {
       return res.redirect(this.authService.buildHandoffRedirectUrl(session));
     }

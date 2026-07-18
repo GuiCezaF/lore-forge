@@ -16,5 +16,10 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     css: true,
     globals: false,
+    server: {
+      deps: {
+        inline: ["next-intl"],
+      },
+    },
   },
 });
