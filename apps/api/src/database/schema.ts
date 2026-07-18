@@ -435,7 +435,12 @@ export const characters = pgTable(
     ownerUserId: uuid('owner_user_id').references(() => users.id, {
       onDelete: 'set null',
     }),
-    sourceCharacterId: uuid('source_character_id'),
+    sourceCharacterId: uuid('source_character_id').references(
+      () => characters.id,
+      {
+        onDelete: 'set null',
+      },
+    ),
     kind: text('kind').notNull().$type<CharacterKind>().default('pc'),
     status: text('status').notNull().$type<CharacterStatus>().default('draft'),
     npcMode: text('npc_mode').$type<NpcMode>(),

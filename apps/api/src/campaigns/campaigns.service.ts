@@ -129,15 +129,42 @@ export class CampaignsService {
   async attachNpc(userId: string, campaignId: string, npcId: string) {
     const access = await this.getCampaignAccess(userId, campaignId);
     if (!access) throw new NotFoundException('Campaign not found');
-    if (!access.isManager) throw new ForbiddenException('Only the GM can add NPCs');
+    if (!access.isManager)
+      throw new ForbiddenException('Only the GM can add NPCs');
     return this.db.transaction(async (tx) => {
-      const [npc] = await tx.select().from(characters).where(and(eq(characters.id, npcId), eq(characters.ownerUserId, userId), eq(characters.kind, 'npc'), eq(characters.status, 'active'), isNull(characters.deletedAt))).for('update');
+      const [npc] = await tx
+        .select()
+        .from(characters)
+        .where(
+          and(
+            eq(characters.id, npcId),
+            eq(characters.ownerUserId, userId),
+            eq(characters.kind, 'npc'),
+            eq(characters.status, 'active'),
+            isNull(characters.deletedAt),
+          ),
+        )
+        .for('update');
       if (!npc) throw new NotFoundException('Active NPC sheet not found');
-      if (npc.campaignId && npc.campaignId !== campaignId) throw new ConflictException('An NPC cannot move to another campaign');
+      if (npc.campaignId && npc.campaignId !== campaignId)
+        throw new ConflictException('An NPC cannot move to another campaign');
       if (npc.campaignId === campaignId) return npc;
       const now = new Date().toISOString();
-      const [attached] = await tx.update(characters).set({ campaignId, campaignAttachedAt: now, updatedAt: now }).where(eq(characters.id, npc.id)).returning();
-      if (attached.npcMode === 'threat') await tx.insert(campaignCharacterStates).values({ characterId: attached.id, currentHp: 0, currentSan: 0, currentEp: 0 }).onConflictDoNothing();
+      const [attached] = await tx
+        .update(characters)
+        .set({ campaignId, campaignAttachedAt: now, updatedAt: now })
+        .where(eq(characters.id, npc.id))
+        .returning();
+      if (attached.npcMode === 'threat')
+        await tx
+          .insert(campaignCharacterStates)
+          .values({
+            characterId: attached.id,
+            currentHp: 0,
+            currentSan: 0,
+            currentEp: 0,
+          })
+          .onConflictDoNothing();
       return attached;
     });
   }
@@ -174,6 +201,7 @@ export class CampaignsService {
         .values({
           ownerUserId: userId,
           campaignId,
+          campaignAttachedAt: now,
           sourceCharacterId: template.id,
           kind: 'npc',
           status: 'active',

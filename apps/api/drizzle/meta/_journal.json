@@ -78,6 +78,13 @@
       "when": 1784145600006,
       "tag": "0010_npc_sheets",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784145600007,
+      "tag": "0011_safe_character_deletion",
+      "breakpoints": true
     }
   ]
 }

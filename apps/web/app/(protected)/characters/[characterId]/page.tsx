@@ -532,18 +532,8 @@ export default function CharacterDetailPage() {
               {t("copy")}
             </button>
           )}
-          {character.kind === "pc" &&
-          !character.campaignId &&
-          !isArchived &&
-          character.permissions.canEditPermanentData ? (
-            <button
-              onClick={() => void archive()}
-              className="rounded border border-red-900 px-3 py-2 text-sm text-red-300"
-            >
-              {t("archive")}
-            </button>
-          ) : null}
           {character.kind === "npc" &&
+          character.campaignId &&
           character.permissions.canEditPermanentData &&
           !isArchived ? (
             <>
@@ -712,7 +702,11 @@ export default function CharacterDetailPage() {
           )}
         </div>
       )}
-      {!character.campaignId && <p className="rounded border border-zinc-800 p-4 text-sm text-zinc-500">{t("noCampaignState")}</p>}
+      {!character.campaignId && (
+        <p className="rounded border border-zinc-800 p-4 text-sm text-zinc-500">
+          {t("noCampaignState")}
+        </p>
+      )}
     </main>
   );
 }

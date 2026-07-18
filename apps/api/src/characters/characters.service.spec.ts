@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CharactersService } from './characters.service';
 
 const userId = '00000000-0000-4000-8000-000000000001';
@@ -202,5 +207,142 @@ describe('CharactersService campaign ownership rules', () => {
     await expect(
       service.getCampaignPlayState(userId, npc.id),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('CharactersService safe character deletion', () => {
+  function createDeletionService(options: {
+    character:
+      | {
+          id: string;
+          ownerUserId: string | null;
+          campaignId: string | null;
+          campaignAttachedAt: string | null;
+          imageAssetId: string | null;
+        }
+      | undefined;
+    draftImageAssetId?: string | null;
+    deleted?: boolean;
+  }) {
+    const deleteReturning = jest
+      .fn()
+      .mockResolvedValue(options.deleted === false ? [] : [{ id: userId }]);
+    const tx = {
+      select: jest
+        .fn()
+        .mockReturnValueOnce({
+          from: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnValue({
+              for: jest
+                .fn()
+                .mockResolvedValue(
+                  options.character ? [options.character] : [],
+                ),
+            }),
+          }),
+        })
+        .mockReturnValueOnce({
+          from: jest.fn().mockReturnValue({
+            where: jest
+              .fn()
+              .mockResolvedValue(
+                options.draftImageAssetId === undefined
+                  ? []
+                  : [{ imageAssetId: options.draftImageAssetId }],
+              ),
+          }),
+        }),
+      delete: jest.fn().mockReturnValue({
+        where: jest.fn().mockReturnValue({ returning: deleteReturning }),
+      }),
+    };
+    const mediaService = { releaseImageIfUnreferenced: jest.fn() };
+    const db = {
+      transaction: jest.fn(async (callback) => callback(tx)),
+    };
+    return {
+      service: new CharactersService(
+        db as never,
+        {} as never,
+        {} as never,
+        mediaService as never,
+      ),
+      deleteReturning,
+      mediaService,
+    };
+  }
+
+  it('hard-deletes an unbound sheet and releases distinct portraits once', async () => {
+    const { service, mediaService } = createDeletionService({
+      character: {
+        id: userId,
+        ownerUserId: userId,
+        campaignId: null,
+        campaignAttachedAt: null,
+        imageAssetId: campaignId,
+      },
+      draftImageAssetId: campaignId,
+    });
+
+    await expect(
+      service.deleteCharacter(userId, userId),
+    ).resolves.toBeUndefined();
+    expect(mediaService.releaseImageIfUnreferenced).toHaveBeenCalledTimes(1);
+    expect(mediaService.releaseImageIfUnreferenced).toHaveBeenCalledWith(
+      userId,
+      campaignId,
+    );
+  });
+
+  it('hides another owner as not found without deleting', async () => {
+    const { service, deleteReturning } = createDeletionService({
+      character: {
+        id: userId,
+        ownerUserId: campaignId,
+        campaignId: null,
+        campaignAttachedAt: null,
+        imageAssetId: null,
+      },
+    });
+
+    await expect(
+      service.deleteCharacter(userId, userId),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(deleteReturning).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { campaignId, campaignAttachedAt: null },
+    { campaignId: null, campaignAttachedAt: '2026-07-18T00:00:00.000Z' },
+  ])('rejects historically attached sheets', async (attachment) => {
+    const { service } = createDeletionService({
+      character: {
+        id: userId,
+        ownerUserId: userId,
+        imageAssetId: null,
+        ...attachment,
+      },
+    });
+
+    await expect(
+      service.deleteCharacter(userId, userId),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('rejects an attachment that wins before the guarded delete', async () => {
+    const { service } = createDeletionService({
+      character: {
+        id: userId,
+        ownerUserId: userId,
+        campaignId: null,
+        campaignAttachedAt: null,
+        imageAssetId: null,
+      },
+      deleted: false,
+    });
+
+    await expect(
+      service.deleteCharacter(userId, userId),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });

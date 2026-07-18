@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -239,6 +240,8 @@ const DEFAULT_RULESET_VERSION = 'op-rpg-1.3';
 
 @Injectable()
 export class CharactersService {
+  private readonly logger = new Logger(CharactersService.name);
+
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly campaignsService: CampaignsService,
@@ -416,7 +419,9 @@ export class CharactersService {
     if (current.kind === 'pc' && current.ownerUserId !== userId)
       throw new ForbiddenException('Only the sheet owner can save this draft');
     if (current.kind === 'npc' && current.ownerUserId !== userId)
-      throw new ForbiddenException('Only the sheet owner can save this NPC draft');
+      throw new ForbiddenException(
+        'Only the sheet owner can save this NPC draft',
+      );
     return this.updateCharacter(userId, characterId, {
       ...body,
       name: body.name ?? current.name,
@@ -916,9 +921,7 @@ export class CharactersService {
   ): Promise<CharacterDto> {
     const source = await this.getAccessibleCharacter(userId, characterId);
     if (source.ownerUserId !== userId) {
-      throw new ForbiddenException(
-        'Only the sheet owner can copy a character',
-      );
+      throw new ForbiddenException('Only the sheet owner can copy a character');
     }
     const now = new Date().toISOString();
     const copy = await this.db.transaction(async (tx) => {
@@ -998,18 +1001,54 @@ export class CharactersService {
         );
       if (source.kind === 'npc') {
         const [[block], attacks, resistances, abilities] = await Promise.all([
-          tx.select().from(npcStatBlocks).where(eq(npcStatBlocks.characterId, source.id)),
-          tx.select().from(npcAttacks).where(eq(npcAttacks.characterId, source.id)),
-          tx.select().from(npcResistances).where(eq(npcResistances.characterId, source.id)),
-          tx.select().from(npcAbilities).where(eq(npcAbilities.characterId, source.id)),
+          tx
+            .select()
+            .from(npcStatBlocks)
+            .where(eq(npcStatBlocks.characterId, source.id)),
+          tx
+            .select()
+            .from(npcAttacks)
+            .where(eq(npcAttacks.characterId, source.id)),
+          tx
+            .select()
+            .from(npcResistances)
+            .where(eq(npcResistances.characterId, source.id)),
+          tx
+            .select()
+            .from(npcAbilities)
+            .where(eq(npcAbilities.characterId, source.id)),
         ]);
         if (block) {
           const { characterId: _characterId, ...statBlock } = block;
-          await tx.insert(npcStatBlocks).values({ ...statBlock, characterId: created.id, updatedAt: now });
+          await tx
+            .insert(npcStatBlocks)
+            .values({ ...statBlock, characterId: created.id, updatedAt: now });
         }
-        if (attacks.length) await tx.insert(npcAttacks).values(attacks.map(({ id: _id, characterId: _characterId, ...entry }) => ({ ...entry, characterId: created.id })));
-        if (resistances.length) await tx.insert(npcResistances).values(resistances.map(({ id: _id, characterId: _characterId, ...entry }) => ({ ...entry, characterId: created.id })));
-        if (abilities.length) await tx.insert(npcAbilities).values(abilities.map(({ id: _id, characterId: _characterId, ...entry }) => ({ ...entry, characterId: created.id })));
+        if (attacks.length)
+          await tx.insert(npcAttacks).values(
+            attacks.map(({ id: _id, characterId: _characterId, ...entry }) => ({
+              ...entry,
+              characterId: created.id,
+            })),
+          );
+        if (resistances.length)
+          await tx.insert(npcResistances).values(
+            resistances.map(
+              ({ id: _id, characterId: _characterId, ...entry }) => ({
+                ...entry,
+                characterId: created.id,
+              }),
+            ),
+          );
+        if (abilities.length)
+          await tx.insert(npcAbilities).values(
+            abilities.map(
+              ({ id: _id, characterId: _characterId, ...entry }) => ({
+                ...entry,
+                characterId: created.id,
+              }),
+            ),
+          );
       }
       return created;
     });
@@ -1019,6 +1058,10 @@ export class CharactersService {
   async archiveCharacter(userId: string, characterId: string): Promise<void> {
     const current = await this.getAccessibleCharacter(userId, characterId);
     if (current.kind === 'npc') {
+      if (!current.campaignId || !current.campaignAttachedAt)
+        throw new ConflictException(
+          'NPCs without a campaign must be kept or deleted',
+        );
       await this.ensureManager(userId, current.campaignId);
       if (current.status === 'archived') return;
       const now = new Date().toISOString();
@@ -1038,31 +1081,67 @@ export class CharactersService {
         'Only the sheet owner can archive a Player Character',
       );
     }
-    if (current.campaignId)
+    if (current.campaignId || current.campaignAttachedAt)
       throw new ConflictException(
         'Campaign Characters can only be archived by the GM',
       );
-    const now = new Date().toISOString();
-    const [draft] = await this.db.transaction(async (tx) => {
-      await tx
-        .update(characters)
-        .set({
-          status: 'archived',
-          frozenAt: now,
-          statusChangedAt: now,
-          updatedAt: now,
-        })
-        .where(eq(characters.id, characterId));
-      return tx
-        .delete(characterEditDrafts)
-        .where(eq(characterEditDrafts.characterId, characterId))
-        .returning();
+    throw new ConflictException(
+      'Player Characters without a campaign must be kept or deleted',
+    );
+  }
+
+  async deleteCharacter(userId: string, characterId: string): Promise<void> {
+    const imageAssetIds = await this.db.transaction(async (tx) => {
+      const [character] = await tx
+        .select()
+        .from(characters)
+        .where(
+          and(eq(characters.id, characterId), isNull(characters.deletedAt)),
+        )
+        .for('update');
+      if (!character || character.ownerUserId !== userId)
+        throw new NotFoundException('Character not found');
+      if (character.campaignId || character.campaignAttachedAt)
+        throw new ConflictException('Campaign Characters cannot be deleted');
+
+      const [editDraft] = await tx
+        .select({ imageAssetId: characterEditDrafts.imageAssetId })
+        .from(characterEditDrafts)
+        .where(eq(characterEditDrafts.characterId, character.id));
+      const deleted = await tx
+        .delete(characters)
+        .where(
+          and(
+            eq(characters.id, character.id),
+            eq(characters.ownerUserId, userId),
+            isNull(characters.campaignId),
+            isNull(characters.campaignAttachedAt),
+            isNull(characters.deletedAt),
+          ),
+        )
+        .returning({ id: characters.id });
+      if (!deleted.length)
+        throw new ConflictException('Campaign Characters cannot be deleted');
+
+      return [
+        ...new Set(
+          [character.imageAssetId, editDraft?.imageAssetId].filter(
+            (assetId): assetId is string => Boolean(assetId),
+          ),
+        ),
+      ];
     });
-    if (draft)
-      await this.mediaService.releaseImageIfUnreferenced(
-        userId,
-        draft.imageAssetId,
-      );
+
+    for (const imageAssetId of imageAssetIds) {
+      try {
+        await this.mediaService.releaseImageIfUnreferenced(
+          userId,
+          imageAssetId,
+        );
+      } catch {
+        this.logger.error('Failed to release a character image after deletion');
+      }
+    }
   }
 
   async updateCampaignState(

@@ -15,6 +15,8 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiNoContentResponse,
+  ApiConflictResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -115,10 +117,7 @@ export class CharactersController {
     @Param('characterId') characterId: string,
     @Body() _body: undefined,
   ) {
-    return this.charactersService.copyCharacter(
-      user.id,
-      characterId,
-    );
+    return this.charactersService.copyCharacter(user.id, characterId);
   }
 
   @Post(':characterId/edit-draft')
@@ -177,6 +176,24 @@ export class CharactersController {
     @Param('characterId') characterId: string,
   ): Promise<void> {
     await this.charactersService.archiveCharacter(user.id, characterId);
+  }
+
+  @Delete(':characterId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Exclui permanentemente uma ficha nunca vinculada' })
+  @ApiNoContentResponse({ description: 'Ficha e dependências excluídas' })
+  @ApiNotFoundResponse({ description: 'Ficha não encontrada' })
+  @ApiConflictResponse({
+    description:
+      'Fichas vinculadas historicamente a uma campanha não podem ser excluídas',
+  })
+  async delete(
+    @CurrentUser() user: AuthUser,
+    @Param('characterId') characterId: string,
+  ): Promise<void> {
+    await this.charactersService.deleteCharacter(user.id, characterId);
   }
 
   @Get(':characterId')
