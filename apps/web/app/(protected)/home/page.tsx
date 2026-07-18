@@ -68,17 +68,23 @@ export default function HomePage() {
                 ${accentClasses.root}
               `}
             >
-              <div className={`absolute -top-32 -left-32 h-64 w-64 rounded-full blur-[80px] transition-all duration-300 pointer-events-none ${accentClasses.glow}`} />
+              <div
+                className={`absolute -top-32 -left-32 h-64 w-64 rounded-full blur-[80px] transition-all duration-300 pointer-events-none ${accentClasses.glow}`}
+              />
 
               <div className="relative flex flex-col gap-6">
-                <div className={`h-12 w-12 rounded-xl border flex items-center justify-center group-hover:scale-110 transition-all duration-300 ${accentClasses.icon}`}>
+                <div
+                  className={`h-12 w-12 rounded-xl border flex items-center justify-center group-hover:scale-110 transition-all duration-300 ${accentClasses.icon}`}
+                >
                   <Icon className="h-6 w-6" />
                 </div>
                 <div className="space-y-2">
                   <div className="text-xs uppercase tracking-[0.3em] text-zinc-500">
                     {card.eyebrow}
                   </div>
-                  <h2 className={`text-2xl font-bold font-serif text-zinc-100 transition-colors ${accentClasses.title}`}>
+                  <h2
+                    className={`text-2xl font-bold font-serif text-zinc-100 transition-colors ${accentClasses.title}`}
+                  >
                     {card.title}
                   </h2>
                   <p className="text-sm text-zinc-400 leading-relaxed max-w-sm">
@@ -87,7 +93,9 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className={`mt-8 flex items-center gap-2 text-xs font-mono uppercase tracking-widest font-semibold ${accentClasses.action}`}>
+              <div
+                className={`mt-8 flex items-center gap-2 text-xs font-mono uppercase tracking-widest font-semibold ${accentClasses.action}`}
+              >
                 <span>{card.action}</span>
                 <Eye className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
               </div>
@@ -95,8 +103,6 @@ export default function HomePage() {
           );
         })}
       </div>
-
-      
     </div>
   );
 }

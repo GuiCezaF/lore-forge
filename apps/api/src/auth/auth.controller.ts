@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -10,6 +11,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiExcludeEndpoint,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -90,14 +92,25 @@ export class AuthController {
   }
 
   @Get('bypass')
-  @ApiOperation({ summary: 'Bypass Google OAuth2 for local development' })
-  async bypass(@Res() res: Response) {
+  @ApiExcludeEndpoint()
+  async bypass(
+    @Query('profile') profile: string | undefined,
+    @Res() res: Response,
+  ) {
     if (this.authService.isProduction()) {
       throw new UnauthorizedException(
         'Bypass only available in development mode',
       );
     }
-    const session = await this.authService.bypassLogin();
+    if (profile && process.env.NODE_ENV !== 'test') {
+      throw new BadRequestException(
+        'Bypass profiles are only available in test mode',
+      );
+    }
+    if (profile && profile !== 'gm' && profile !== 'player') {
+      throw new BadRequestException('Invalid bypass profile');
+    }
+    const session = await this.authService.bypassLogin(profile);
     if (this.authService.shouldUseAuthHandoff()) {
       return res.redirect(this.authService.buildHandoffRedirectUrl(session));
     }

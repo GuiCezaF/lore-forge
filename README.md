@@ -1,69 +1,76 @@
 # LoreForge
 
-LoreForge is a virtual tabletop (VTT) web platform for tabletop RPGs. Its goal is to centralize every aspect of a game session in a single place: campaigns, character sheets, GM notes, a real-time battle map, dice rolling, and an investigation board.
+LoreForge is a private web-based virtual tabletop for Ordem Paranormal RPG. It supports one Campaign GM, invitation-only Campaign Players, authoritative character sheets, Campaign State, NPC Sheets, and anonymous spectator links.
 
-The initial supported game system is **Ordem Paranormal RPG**, in compliance with the Ordem Paranormal Community License v1.0.
+The API is authoritative for rules, permissions, persistence, and game calculations. The web application communicates with it only through REST/OpenAPI and WebSocket contracts.
 
-## Key Features
+## Delivered features
 
-- Google OAuth authentication.
-- Campaigns with Game Master, Player, and Spectator roles.
-- Character sheets with authoritative server-side validation.
-- Rich-text GM documents with visibility controls.
-- Real-time tabletop map with tokens, grid, fog of war, zoom, and pan.
-- Presentation mode in a separate, clean, ad-free browser tab.
-- Server-synchronized dice rolling with authoritative calculations.
-- Investigation board with nodes, connections, tags, and color coding.
+- Google OAuth authentication and secure JWT sessions.
+- Guided player-character creation with server-side rules validation.
+- Staged Permanent Sheet Data edits and separate Campaign State.
+- A single-GM campaign model, player invitations, and campaign-character lifecycle.
+- Independently created NPC Sheets that a GM attaches once to a campaign.
+- Revocable anonymous spectator links exposing only published campaign details.
+- Private image storage served through authenticated API routes.
 
-## Tech Stack
+Planned maps, dice rolling, and other future tabletop features are intentionally not described as delivered functionality.
 
-| Layer | Technologies |
-|-------|--------------|
-| Frontend | Next.js, TypeScript, Tailwind CSS, Zustand, TanStack Query |
-| Specialized UI | PixiJS, React Flow, TipTap |
-| Backend | NestJS, Drizzle ORM, PostgreSQL, Redis, WebSocket |
-| Storage | MinIO for development, Cloudflare R2 for production |
-| Quality Assurance | Jest, Vitest, React Testing Library, MSW, Cypress |
-| Operations | Docker, Coolify, Cloudflare, Prometheus/Grafana |
+## Local setup
 
-## Project Structure
-
-```text
-LoreForge/
-  apps/
-    web/   # Next.js frontend
-    api/   # NestJS backend
-```
-
-Each application is self-contained. No code is shared directly between the frontend and backend; integration is performed exclusively through REST/OpenAPI and WebSocket. The API is the authoritative source for business rules, validation, persistence, and permissions.
-
-## Quick Start
-
-### Prerequisites
-
-- Node.js 20+
-- pnpm 9+
-- Docker and Docker Compose
+The applications are independent and have separate lockfiles. Start local infrastructure first:
 
 ```bash
-pnpm install
 docker compose -f docker-compose.local.yml up -d
-pnpm --filter @loreforge/api db:migrate
+```
+
+Then install and run each application in a separate terminal:
+
+```bash
+cd apps/api
+pnpm install --frozen-lockfile
+pnpm db:migrate
+pnpm start:dev
+```
+
+```bash
+cd apps/web
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-### Available Services
-
 | Service | URL |
-|---------|-----|
+| --- | --- |
 | Web | http://localhost:3001 |
 | API | http://localhost:3000 |
 | Swagger | http://localhost:3000/api/docs |
-| MinIO | http://localhost:9001 |
+| MinIO console | http://localhost:9001 |
 
-## Licenses
+## Verification
 
-- Source code: [Apache License 2.0](LICENSE).
-- Ordem Paranormal RPG compatibility: [Ordem Paranormal Community License v1.0](https://ordemparanormal.com.br/licenca).
+API integration tests require a dedicated, migrated PostgreSQL database whose name ends in `_test`; never point `DATABASE_URL` at a development or production database.
 
-LoreForge is an unofficial tool and is not affiliated with, partnered with, or endorsed by Rafael "Cellbit" Lange, Jambô Editora, or Ordem Paranormal.
+```bash
+cd apps/api
+pnpm format:check
+pnpm typecheck
+pnpm build
+pnpm test --runInBand
+pnpm db:migrate
+pnpm test:e2e --runInBand
+```
+
+```bash
+cd apps/web
+pnpm format:check
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm test:e2e
+```
+
+See [the workflow guide](docs/workflows.md) for the supported user flows.
+
+## License and disclaimer
+
+LoreForge follows the [Ordem Paranormal Community License v1.0](https://ordemparanormal.com.br/licenca). It is an unofficial tool and is not affiliated with, partnered with, or endorsed by Rafael "Cellbit" Lange or Jambô Editora.

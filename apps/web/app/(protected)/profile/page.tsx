@@ -118,7 +118,9 @@ export default function ProfilePage() {
               <div className="text-lg font-semibold text-zinc-100">
                 {profile?.name ?? "Carregando..."}
               </div>
-              <div className="truncate text-sm text-zinc-500">{profile?.email}</div>
+              <div className="truncate text-sm text-zinc-500">
+                {profile?.email}
+              </div>
             </div>
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-zinc-500">
               <Pencil className="h-3.5 w-3.5" />
@@ -129,7 +131,9 @@ export default function ProfilePage() {
           <dl className="mt-6 space-y-4 text-sm">
             <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
               <dt className="text-zinc-500">Short code</dt>
-              <dd className="font-medium text-zinc-200">{profile?.shortCode}</dd>
+              <dd className="font-medium text-zinc-200">
+                {profile?.shortCode}
+              </dd>
             </div>
             <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
               <dt className="text-zinc-500">Login</dt>
@@ -150,7 +154,9 @@ export default function ProfilePage() {
         <div className={`${surfaceClassName} p-6`}>
           {editing ? (
             <>
-              <h2 className="text-xl font-medium text-zinc-100">Editar perfil</h2>
+              <h2 className="text-xl font-medium text-zinc-100">
+                Editar perfil
+              </h2>
               <form className="mt-6 space-y-4" onSubmit={saveProfile}>
                 <label className={fieldLabelClassName}>
                   <span className={fieldCaptionClassName}>Nome</span>
@@ -196,7 +202,8 @@ export default function ProfilePage() {
                 Clique no nome ou na foto
               </h2>
               <p className="mt-2 max-w-sm text-sm leading-6 text-zinc-500">
-                O perfil abre em modo de edição quando você usa o bloco superior ou o atalho no cabeçalho.
+                O perfil abre em modo de edição quando você usa o bloco superior
+                ou o atalho no cabeçalho.
               </p>
             </div>
           )}

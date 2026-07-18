@@ -121,7 +121,9 @@ export class UsersService {
       return;
     }
     await this.db.transaction(async (trx) => {
-      await trx.execute(sql`DELETE FROM campaign_spectator_access USING campaigns WHERE campaign_spectator_access.campaign_id = campaigns.id AND campaigns.owner_user_id = ${user.id}`);
+      await trx.execute(
+        sql`DELETE FROM campaign_spectator_access USING campaigns WHERE campaign_spectator_access.campaign_id = campaigns.id AND campaigns.owner_user_id = ${user.id}`,
+      );
       await trx
         .update(campaigns)
         .set({ ownerUserId: null })

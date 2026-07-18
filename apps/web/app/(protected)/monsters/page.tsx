@@ -79,14 +79,19 @@ export default function MonstersPage() {
           { name: "imageAssetId", label: "ID do recurso de imagem" },
         ]}
         itemLabel={(item) => item.name}
-        itemMeta={(item) => `${item.scope} · ${item.locked ? "bloqueado" : "editável"}`}
+        itemMeta={(item) =>
+          `${item.scope} · ${item.locked ? "bloqueado" : "editável"}`
+        }
         itemSubline={(item) => item.description || "Sem descrição"}
         cloneEndpoint={(item) =>
-          item.campaignId ? `/monsters/${item.id}/clone` : `/monsters/${item.id}/clone`
+          item.campaignId
+            ? `/monsters/${item.id}/clone`
+            : `/monsters/${item.id}/clone`
         }
         buildPayload={(values) => ({
           scope: values.scope || "user",
-          campaignId: values.scope === "campaign" ? values.campaignId || null : null,
+          campaignId:
+            values.scope === "campaign" ? values.campaignId || null : null,
           name: values.name,
           description: values.description,
           data: values.data ? JSON.parse(values.data) : {},

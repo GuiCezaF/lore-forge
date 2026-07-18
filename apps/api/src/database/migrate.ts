@@ -1,8 +1,8 @@
-import path from "node:path";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { Pool } from "pg";
-import { loadEnvironment } from "../config/environment";
+import path from 'node:path';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { Pool } from 'pg';
+import { loadEnvironment } from '../config/environment';
 
 async function main() {
   const pool = new Pool({
@@ -12,7 +12,7 @@ async function main() {
   const db = drizzle(pool);
 
   await migrate(db, {
-    migrationsFolder: path.join(process.cwd(), "drizzle"),
+    migrationsFolder: path.join(process.cwd(), 'drizzle'),
   });
 
   await pool.end();

@@ -262,12 +262,7 @@ export class CharactersService {
       );
     const accessible: typeof rows = [];
     for (const row of rows) {
-      if (
-        row.ownerUserId === userId ||
-        (row.campaignId &&
-          (await this.canAccessCampaign(userId, row.campaignId)))
-      )
-        accessible.push(row);
+      if (await this.canReadCharacter(userId, row)) accessible.push(row);
     }
     return accessible
       .filter((row) => !(row.kind === 'npc' && !row.campaignId))
@@ -1399,12 +1394,27 @@ export class CharactersService {
       .from(characters)
       .where(and(eq(characters.id, characterId), isNull(characters.deletedAt)));
     if (!row) throw new NotFoundException('Character not found');
-    if (
-      row.ownerUserId === userId ||
-      (row.campaignId && (await this.canAccessCampaign(userId, row.campaignId)))
-    )
-      return row;
+    if (await this.canReadCharacter(userId, row)) return row;
     throw new NotFoundException('Character not found');
+  }
+
+  /**
+   * A campaign membership is deliberately not a blanket sheet grant. Players
+   * can see only active PCs in their campaign; inactive history and NPC sheets
+   * remain private to their owner or the campaign GM.
+   */
+  private async canReadCharacter(
+    userId: string,
+    character: typeof characters.$inferSelect,
+  ): Promise<boolean> {
+    if (character.ownerUserId === userId) return true;
+    if (!character.campaignId) return false;
+    if (await this.isCampaignManager(userId, character.campaignId)) return true;
+    return (
+      character.kind === 'pc' &&
+      character.status === 'active' &&
+      (await this.hasCampaignMembership(userId, character.campaignId))
+    );
   }
 
   private ensureCanEditActivePlayerCharacter(

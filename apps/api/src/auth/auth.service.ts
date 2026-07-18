@@ -202,17 +202,32 @@ export class AuthService {
     return this.createSession(user);
   }
 
-  async bypassLogin(): Promise<{
+  async bypassLogin(profile?: 'gm' | 'player'): Promise<{
     user: AuthUser;
     accessToken: string;
     refreshToken: string;
   }> {
-    const mockProfile = {
-      sub: 'mock-dev-id-123',
-      email: 'investigator@loreforge.local',
-      name: 'Arthur Cervero',
-      picture: 'https://avatar.vercel.sh/arthur',
-    };
+    const profiles = {
+      gm: {
+        sub: 'mock-test-gm-id',
+        email: 'gm@loreforge.test',
+        name: 'Test GM',
+        picture: 'https://avatar.vercel.sh/gm',
+      },
+      player: {
+        sub: 'mock-test-player-id',
+        email: 'player@loreforge.test',
+        name: 'Test Player',
+        picture: 'https://avatar.vercel.sh/player',
+      },
+      default: {
+        sub: 'mock-dev-id-123',
+        email: 'investigator@loreforge.local',
+        name: 'Arthur Cervero',
+        picture: 'https://avatar.vercel.sh/arthur',
+      },
+    } as const;
+    const mockProfile = profiles[profile ?? 'default'];
     const user = await this.usersService.upsertGoogleUser(mockProfile);
     return this.createSession(user);
   }

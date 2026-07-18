@@ -63,7 +63,9 @@ export function PageSection({
       <header className={sectionHeaderClassName}>
         <div>
           <h2 className="text-2xl font-semibold text-zinc-100">{title}</h2>
-          {description ? <p className="mt-1 text-sm text-zinc-500">{description}</p> : null}
+          {description ? (
+            <p className="mt-1 text-sm text-zinc-500">{description}</p>
+          ) : null}
         </div>
         {actions}
       </header>

@@ -4,7 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 export function setupSwagger(app: INestApplication): void {
   const config = new DocumentBuilder()
     .setTitle('LoreForge API')
-    .setDescription('Documentação inicial da API do LoreForge')
+    .setDescription('Public REST API for LoreForge')
     .setVersion('0.0.1')
     .addBearerAuth()
     .addTag('app')

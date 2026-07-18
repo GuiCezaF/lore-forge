@@ -3,9 +3,11 @@ name: API CI
 on:
   push:
     branches:
+      - develop
       - master
   pull_request:
     branches:
+      - develop
       - master
 
 jobs:
@@ -19,6 +21,22 @@ jobs:
       S3_BUCKET: loreforge-test
       S3_ACCESS_KEY: test-access-key
       S3_SECRET_KEY: test-secret-key
+      GOOGLE_CLIENT_ID: test-google-client-id
+      GOOGLE_CLIENT_SECRET: test-google-client-secret
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: loreforge
+          POSTGRES_PASSWORD: loreforge
+          POSTGRES_DB: loreforge_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U loreforge -d loreforge_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     defaults:
       run:
@@ -43,5 +61,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Check types
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
       - name: Run unit tests
         run: pnpm test --runInBand
+
+      - name: Apply migrations
+        run: pnpm db:migrate
+
+      - name: Run integration tests
+        run: pnpm test:e2e --runInBand

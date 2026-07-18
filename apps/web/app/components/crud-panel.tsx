@@ -180,9 +180,7 @@ export function CrudPanel<T extends { id: string }>({
 
       await loadItems();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("deleteFailed"),
-      );
+      setError(err instanceof Error ? err.message : t("deleteFailed"));
     }
   }
 
@@ -252,9 +250,7 @@ export function CrudPanel<T extends { id: string }>({
           {loading ? (
             <div className="p-6 text-sm text-zinc-500">{t("loading")}</div>
           ) : visibleItems.length === 0 ? (
-            <div className="p-6 text-sm text-zinc-500">
-              {t("empty")}
-            </div>
+            <div className="p-6 text-sm text-zinc-500">{t("empty")}</div>
           ) : (
             <ul className="space-y-3 p-4">
               {visibleItems.map((item) => {
@@ -424,7 +420,11 @@ export function CrudPanel<T extends { id: string }>({
                   disabled={saving}
                   className={primaryButtonClassName}
                 >
-                  {saving ? t("saving") : selectedId ? t("update") : t("create")}
+                  {saving
+                    ? t("saving")
+                    : selectedId
+                      ? t("update")
+                      : t("create")}
                 </button>
               </div>
             </form>

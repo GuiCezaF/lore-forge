@@ -67,7 +67,10 @@ export function LandingHero({
 
         <div className="space-y-3">
           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-zinc-100 font-serif">
-            Lore<span className="text-red-600 drop-shadow-[0_0_8px_rgba(220,38,38,0.5)]">Forge</span>
+            Lore
+            <span className="text-red-600 drop-shadow-[0_0_8px_rgba(220,38,38,0.5)]">
+              Forge
+            </span>
           </h1>
           <p className="text-zinc-400 max-w-sm mx-auto text-sm leading-relaxed">
             {t("tagline")}

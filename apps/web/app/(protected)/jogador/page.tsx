@@ -19,7 +19,8 @@ export default function JogadorPage() {
             Painel do jogador
           </h1>
           <p className="text-sm text-zinc-500">
-            Entre direto na área de fichas. Só personagens jogáveis aparecem nesse fluxo.
+            Entre direto na área de fichas. Só personagens jogáveis aparecem
+            nesse fluxo.
           </p>
         </div>
       </div>
@@ -40,7 +41,8 @@ export default function JogadorPage() {
                 Abrir fichas
               </h2>
               <p className="text-sm text-zinc-400 leading-relaxed max-w-sm">
-                Criação, edição e remoção já estão disponíveis. O CRUD foi mantido em uma tela separada para não poluir o painel inicial.
+                Criação, edição e remoção já estão disponíveis. O CRUD foi
+                mantido em uma tela separada para não poluir o painel inicial.
               </p>
             </div>
           </div>
@@ -59,7 +61,8 @@ export default function JogadorPage() {
             Fluxo focado
           </h2>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
-            O jogador vê apenas o que precisa: campanha, nome, descrição, dados da ficha e imagem opcional.
+            O jogador vê apenas o que precisa: campanha, nome, descrição, dados
+            da ficha e imagem opcional.
           </p>
         </div>
       </div>

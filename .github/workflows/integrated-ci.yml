@@ -1,0 +1,86 @@
+name: Integrated CI
+
+on:
+  push:
+    branches: [develop, master]
+  pull_request:
+    branches: [develop, master]
+
+jobs:
+  cypress:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: loreforge
+          POSTGRES_PASSWORD: loreforge
+          POSTGRES_DB: loreforge_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U loreforge -d loreforge_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://loreforge:loreforge@localhost:5432/loreforge_test
+      REDIS_URL: redis://localhost:6379
+      S3_ENDPOINT: http://localhost:9000
+      S3_BUCKET: loreforge-test
+      S3_ACCESS_KEY: test-access-key
+      S3_SECRET_KEY: test-secret-key
+      GOOGLE_CLIENT_ID: test-google-client-id
+      GOOGLE_CLIENT_SECRET: test-google-client-secret
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+      NEXT_PUBLIC_GOOGLE_AUTH_URL: http://localhost:3000/auth/google
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            apps/api/pnpm-lock.yaml
+            apps/web/pnpm-lock.yaml
+      - name: Install API dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+        working-directory: apps/api
+      - name: Install web dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/web
+      - name: Build applications
+        run: |
+          pnpm build
+          pnpm --dir ../web build
+        working-directory: apps/api
+      - name: Apply API migrations
+        run: pnpm db:migrate
+        working-directory: apps/api
+      - name: Start applications
+        run: |
+          (cd apps/api && pnpm start:prod) > "$RUNNER_TEMP/api.log" 2>&1 &
+          (cd apps/web && pnpm start) > "$RUNNER_TEMP/web.log" 2>&1 &
+      - name: Wait for health endpoints
+        run: |
+          for attempt in {1..30}; do
+            curl --fail --silent http://localhost:3000/api/health && curl --fail --silent http://localhost:3001 && exit 0
+            sleep 2
+          done
+          exit 1
+      - name: Run Cypress
+        run: pnpm test:e2e
+        working-directory: apps/web
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integrated-diagnostics
+          path: |
+            ${{ runner.temp }}/api.log
+            ${{ runner.temp }}/web.log
+            apps/web/cypress/screenshots
+            apps/web/cypress/videos

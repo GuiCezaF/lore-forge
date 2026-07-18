@@ -15,7 +15,9 @@ describe('spectator access tokens', () => {
   it('rejects malformed tokens', () => {
     expect(isSpectatorToken('lfs_short')).toBe(false);
     expect(isSpectatorToken('invalid')).toBe(false);
-    expect(isSpectatorToken('lfs_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa=')).toBe(false);
+    expect(
+      isSpectatorToken('lfs_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa='),
+    ).toBe(false);
   });
 
   it('hashes deterministically without preserving the raw token', () => {

@@ -29,6 +29,22 @@ describe('AppController (e2e)', () => {
     return request(app.getHttpServer()).get('/api/docs').expect(200);
   });
 
+  it('/api/docs-json describes protected media without exposing bypass auth', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/docs-json')
+      .expect(200);
+
+    expect(response.body.paths['/media/{assetId}/file'].get.security).toEqual([
+      { bearer: [] },
+    ]);
+    expect(
+      response.body.paths['/media/{assetId}/file'].get.responses['200'].content[
+        'image/*'
+      ].schema.format,
+    ).toBe('binary');
+    expect(response.body.paths['/auth/bypass']).toBeUndefined();
+  });
+
   afterEach(async () => {
     await app.close();
   });

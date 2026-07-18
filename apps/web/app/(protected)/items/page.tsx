@@ -19,7 +19,8 @@ export default function ItemsPage() {
   const [campaignOptions, setCampaignOptions] = useState<CampaignOption[]>([]);
   const kind = searchParams.get("kind");
   const kindLocked = kind === "item" || kind === "document";
-  const pageTitle = kind === "document" ? "Documentos" : kind === "item" ? "Itens" : "Itens";
+  const pageTitle =
+    kind === "document" ? "Documentos" : kind === "item" ? "Itens" : "Itens";
   const pageDescription =
     kind === "document"
       ? "Apenas documentos de campanha e pistas narrativas."
@@ -106,7 +107,8 @@ export default function ItemsPage() {
         buildPayload={(values) => ({
           scope: values.scope || "user",
           kind: kindLocked ? kind : values.kind || "item",
-          campaignId: values.scope === "campaign" ? values.campaignId || null : null,
+          campaignId:
+            values.scope === "campaign" ? values.campaignId || null : null,
           name: values.name,
           description: values.description,
           data: values.data ? JSON.parse(values.data) : {},

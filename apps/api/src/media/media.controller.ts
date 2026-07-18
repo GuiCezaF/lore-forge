@@ -34,12 +34,17 @@ export class MediaController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Envia uma imagem para o storage' })
-  @ApiOkResponse({ description: 'Asset criado' })
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
+  @ApiOperation({ summary: 'Upload an image asset' })
+  @ApiOkResponse({ description: 'Asset created' })
   async upload(
     @CurrentUser() user: AuthUser,
-    @UploadedFile() file: any,
+    @UploadedFile()
+    file:
+      | { originalname: string; mimetype: string; size: number; buffer: Buffer }
+      | undefined,
     @Req() request: Request,
   ) {
     if (!file) {
@@ -62,13 +67,19 @@ export class MediaController {
   }
 
   @Get(':assetId/file')
-  @ApiOperation({ summary: 'Baixa uma imagem armazenada' })
-  @ApiOkResponse({ description: 'Arquivo da imagem' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Download an authorized image asset' })
+  @ApiOkResponse({
+    description: 'Image binary response',
+    content: { 'image/*': { schema: { type: 'string', format: 'binary' } } },
+  })
   async download(
+    @CurrentUser() user: AuthUser,
     @Param('assetId') assetId: string,
     @Res() res: Response,
   ): Promise<void> {
-    const asset = await this.mediaService.getImageBuffer(assetId);
+    const asset = await this.mediaService.getImageBuffer(assetId, user.id);
     res.setHeader('Content-Type', asset.mimeType);
     res.setHeader(
       'Content-Disposition',

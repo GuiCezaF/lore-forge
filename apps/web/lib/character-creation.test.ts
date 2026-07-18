@@ -10,8 +10,8 @@ import {
 describe("character creation helpers", () => {
   it("keeps the terminal 99% NEX option while using the catalog step", () => {
     expect(getNexOptions({ min: 5, max: 99, step: 5 })).toEqual([
-      5, 10, 15, 20, 25, 30, 35, 40, 45, 50,
-      55, 60, 65, 70, 75, 80, 85, 90, 95, 99,
+      5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95,
+      99,
     ]);
     expect(getNexOptions({ min: 5, max: 99, step: 5 })).not.toContain(100);
   });
@@ -40,7 +40,12 @@ describe("character creation helpers", () => {
   });
 
   it("normalizes attributes after lowering NEX", () => {
-    expect(normalizeAttributes({ agility: 5, strength: 4, intellect: 4, presence: 0, vigor: 0 }, 5)).toEqual({
+    expect(
+      normalizeAttributes(
+        { agility: 5, strength: 4, intellect: 4, presence: 0, vigor: 0 },
+        5,
+      ),
+    ).toEqual({
       agility: 3,
       strength: 3,
       intellect: 3,

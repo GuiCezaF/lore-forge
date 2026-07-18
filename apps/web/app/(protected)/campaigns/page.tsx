@@ -172,7 +172,13 @@ export default function CampaignsPage() {
         name: string;
         status: string;
       }>;
-      setTemplates(data.filter((template) => template.status === "active" && !('campaignId' in template && template.campaignId)));
+      setTemplates(
+        data.filter(
+          (template) =>
+            template.status === "active" &&
+            !("campaignId" in template && template.campaignId),
+        ),
+      );
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

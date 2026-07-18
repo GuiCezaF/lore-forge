@@ -6,24 +6,358 @@ import { apiFetch } from "@/lib/api-client";
 import { getBrowserApiUrl } from "@/lib/api-url";
 import { useTranslations } from "next-intl";
 
-type Values = { name: string; concept: string; appearance: string; personality: string; history: string; objective: string; playerNotes: string; npcMode: "narrative" | "threat"; imageAssetId: string; agility: number; strength: number; intellect: number; presence: number; vigor: number; npcStatBlock: { threatLevel: number; hp: number; defense: number; fortitude: number; reflex: number; will: number; perception: number; movement: number; senses: string; notes: string } };
-const initial: Values = { name: "", concept: "", appearance: "", personality: "", history: "", objective: "", playerNotes: "", npcMode: "narrative", imageAssetId: "", agility: 1, strength: 1, intellect: 1, presence: 1, vigor: 1, npcStatBlock: { threatLevel: 0, hp: 1, defense: 10, fortitude: 0, reflex: 0, will: 0, perception: 0, movement: 9, senses: "", notes: "" } };
-const fields = ["name", "concept", "appearance", "personality", "history", "objective", "playerNotes"] as const;
-const numbers = ["agility", "strength", "intellect", "presence", "vigor"] as const;
-const statNumbers = ["threatLevel", "hp", "defense", "fortitude", "reflex", "will", "perception", "movement"] as const;
+type Values = {
+  name: string;
+  concept: string;
+  appearance: string;
+  personality: string;
+  history: string;
+  objective: string;
+  playerNotes: string;
+  npcMode: "narrative" | "threat";
+  imageAssetId: string;
+  agility: number;
+  strength: number;
+  intellect: number;
+  presence: number;
+  vigor: number;
+  npcStatBlock: {
+    threatLevel: number;
+    hp: number;
+    defense: number;
+    fortitude: number;
+    reflex: number;
+    will: number;
+    perception: number;
+    movement: number;
+    senses: string;
+    notes: string;
+  };
+};
+const initial: Values = {
+  name: "",
+  concept: "",
+  appearance: "",
+  personality: "",
+  history: "",
+  objective: "",
+  playerNotes: "",
+  npcMode: "narrative",
+  imageAssetId: "",
+  agility: 1,
+  strength: 1,
+  intellect: 1,
+  presence: 1,
+  vigor: 1,
+  npcStatBlock: {
+    threatLevel: 0,
+    hp: 1,
+    defense: 10,
+    fortitude: 0,
+    reflex: 0,
+    will: 0,
+    perception: 0,
+    movement: 9,
+    senses: "",
+    notes: "",
+  },
+};
+const fields = [
+  "name",
+  "concept",
+  "appearance",
+  "personality",
+  "history",
+  "objective",
+  "playerNotes",
+] as const;
+const numbers = [
+  "agility",
+  "strength",
+  "intellect",
+  "presence",
+  "vigor",
+] as const;
+const statNumbers = [
+  "threatLevel",
+  "hp",
+  "defense",
+  "fortitude",
+  "reflex",
+  "will",
+  "perception",
+  "movement",
+] as const;
 
-export function NpcSheetEditor({ templateId, npcId, initialValues }: { templateId?: string; npcId?: string; initialValues?: Partial<Values> }) {
-  const t = useTranslations("npc"); const router = useRouter(); const apiUrl = getBrowserApiUrl();
-  const initialStatBlock = (initialValues?.npcStatBlock as unknown as { statBlock?: Partial<Values["npcStatBlock"]> } | undefined)?.statBlock ?? initialValues?.npcStatBlock;
-  const [values, setValues] = useState<Values>({ ...initial, ...initialValues, npcStatBlock: { ...initial.npcStatBlock, ...initialStatBlock } });
-  const [id, setId] = useState(templateId ?? npcId ?? ""); const [status, setStatus] = useState("local"); const [error, setError] = useState(false); const sequence = useRef(0);
+export function NpcSheetEditor({
+  templateId,
+  npcId,
+  initialValues,
+}: {
+  templateId?: string;
+  npcId?: string;
+  initialValues?: Partial<Values>;
+}) {
+  const t = useTranslations("npc");
+  const router = useRouter();
+  const apiUrl = getBrowserApiUrl();
+  const initialStatBlock =
+    (
+      initialValues?.npcStatBlock as unknown as
+        { statBlock?: Partial<Values["npcStatBlock"]> } | undefined
+    )?.statBlock ?? initialValues?.npcStatBlock;
+  const [values, setValues] = useState<Values>({
+    ...initial,
+    ...initialValues,
+    npcStatBlock: { ...initial.npcStatBlock, ...initialStatBlock },
+  });
+  const [id, setId] = useState(templateId ?? npcId ?? "");
+  const [status, setStatus] = useState("local");
+  const [error, setError] = useState(false);
+  const sequence = useRef(0);
   const key = "lore-forge:npc-sheet-draft:v1";
-  useEffect(() => { if (templateId || npcId) return; const saved = sessionStorage.getItem(key); if (!saved) return; try { const local = JSON.parse(saved) as { id?: string; values: Values }; setId(local.id ?? ""); setValues(local.values); } catch { sessionStorage.removeItem(key); } }, [templateId, npcId]);
-  useEffect(() => { if (templateId || npcId || !id) return; let active = true; void apiFetch(`${apiUrl}/characters/${id}`).then(async response => { if (!response.ok || !active) return; const remote = await response.json() as Values & { npcStatBlock?: { statBlock?: Partial<Values["npcStatBlock"]> } }; setValues(current => ({ ...current, ...remote, npcStatBlock: remote.npcStatBlock?.statBlock ? { ...current.npcStatBlock, ...remote.npcStatBlock.statBlock } : current.npcStatBlock })); }); return () => { active = false; }; }, [apiUrl, id, templateId, npcId]);
-  useEffect(() => { if (templateId || npcId) return; const timer = window.setTimeout(() => { const request = ++sequence.current; sessionStorage.setItem(key, JSON.stringify({ id, values })); setStatus("saving"); const save = id ? apiFetch(`${apiUrl}/characters/${id}/draft`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) }) : apiFetch(`${apiUrl}/characters/npcs/drafts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) }); void save.then(async response => { if (!response.ok || request !== sequence.current) { if (request === sequence.current) setStatus("offline"); return; } const saved = await response.json() as { id: string }; setId(saved.id); sessionStorage.setItem(key, JSON.stringify({ id: saved.id, values })); setStatus("saved"); }).catch(() => { if (request === sequence.current) setStatus("offline"); }); }, 600); return () => clearTimeout(timer); }, [apiUrl, id, templateId, npcId, values]);
-  const update = <K extends keyof Values>(key: K, value: Values[K]) => setValues(current => ({ ...current, [key]: value }));
-  async function upload(file: File) { const form = new FormData(); form.append("file", file); const response = await apiFetch(`${apiUrl}/media`, { method: "POST", body: form }); if (!response.ok) return setError(true); const asset = await response.json() as { id: string }; update("imageAssetId", asset.id); }
-  async function saveActive() { setError(false); const endpoint = id || templateId || npcId; const response = endpoint ? await apiFetch(`${apiUrl}/characters/${endpoint}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...values, imageAssetId: values.imageAssetId || null, status: "active" }) }) : await apiFetch(`${apiUrl}/characters/npcs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) }); if (!response.ok) return setError(true); sessionStorage.removeItem(key); router.push(npcId ? `/characters/${npcId}` : "/mestre/npcs"); }
-  async function archive() { if (!npcId || !window.confirm("Arquivar este NPC?")) return; const response = await apiFetch(`${apiUrl}/characters/${npcId}/archive`, { method: "POST" }); if (response.ok) router.push(`/characters/${npcId}`); else setError(true); }
-  return <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 py-4"><header><p className="text-xs uppercase tracking-[.2em] text-red-500">{t("badge")}</p><h1 className="font-serif text-3xl text-zinc-100">{npcId ? "Editar ficha de NPC" : templateId ? "Editar ficha de NPC" : t("title")}</h1>{!templateId && !npcId && <p className="mt-2 text-sm text-zinc-400">{t("draft", { status: t(status) })}</p>}</header><section className="grid gap-4 rounded-xl border border-zinc-800 bg-zinc-950 p-6 sm:grid-cols-2">{fields.map(field => <label key={field} className="grid min-w-0 gap-1 text-sm text-zinc-300 sm:col-span-2">{t(field)}<textarea required={field === "name"} value={values[field] ?? ""} onChange={event => update(field, event.target.value)} className="min-h-10 w-full rounded border border-zinc-700 bg-zinc-900 p-2" /></label>)}<label className="grid min-w-0 gap-1 text-sm text-zinc-300">{t("mode")}<select value={values.npcMode} onChange={event => update("npcMode", event.target.value as Values["npcMode"])} className="w-full rounded border border-zinc-700 bg-zinc-900 p-2"><option value="narrative">{t("narrative")}</option><option value="threat">{t("threat")}</option></select></label><label className="grid gap-1 text-sm text-zinc-300">{t("portrait")}<input type="file" accept="image/*" onChange={event => { const file = event.target.files?.[0]; if (file) void upload(file); }} />{values.imageAssetId && <button type="button" onClick={() => update("imageAssetId", "")} className="text-left text-xs text-red-300">{t("removePortrait")}</button>}</label>{values.npcMode === "threat" && <><div className="sm:col-span-2 grid grid-cols-2 gap-2 sm:grid-cols-5">{numbers.map(field => <label key={field} className="grid min-w-0 gap-1 text-xs text-zinc-300">{t(`field.${field}`)}<input type="number" value={values[field]} onChange={event => update(field, Number(event.target.value))} className="w-full rounded border border-zinc-700 bg-zinc-900 p-2" /></label>)}</div><div className="sm:col-span-2 grid grid-cols-2 gap-2 sm:grid-cols-4">{statNumbers.map(field => <label key={field} className="grid min-w-0 gap-1 text-xs text-zinc-300">{t(`field.${field}`)}<input type="number" value={values.npcStatBlock[field]} onChange={event => setValues(current => ({ ...current, npcStatBlock: { ...current.npcStatBlock, [field]: Number(event.target.value) } }))} className="w-full rounded border border-zinc-700 bg-zinc-900 p-2" /></label>)}</div></>}</section>{error && <p className="text-sm text-red-300">{t("saveFailed")}</p>}<div className="flex justify-end gap-3">{npcId && <button type="button" onClick={() => void archive()} className="rounded border border-red-900 px-4 py-2 text-sm text-red-300">Arquivar</button>}<button type="button" onClick={() => void saveActive()} className="rounded bg-red-700 px-4 py-2 text-sm font-semibold text-white">{npcId || templateId ? "Salvar alterações" : "Finalizar ficha"}</button></div></main>;
+  useEffect(() => {
+    if (templateId || npcId) return;
+    const saved = sessionStorage.getItem(key);
+    if (!saved) return;
+    try {
+      const local = JSON.parse(saved) as { id?: string; values: Values };
+      setId(local.id ?? "");
+      setValues(local.values);
+    } catch {
+      sessionStorage.removeItem(key);
+    }
+  }, [templateId, npcId]);
+  useEffect(() => {
+    if (templateId || npcId || !id) return;
+    let active = true;
+    void apiFetch(`${apiUrl}/characters/${id}`).then(async (response) => {
+      if (!response.ok || !active) return;
+      const remote = (await response.json()) as Values & {
+        npcStatBlock?: { statBlock?: Partial<Values["npcStatBlock"]> };
+      };
+      setValues((current) => ({
+        ...current,
+        ...remote,
+        npcStatBlock: remote.npcStatBlock?.statBlock
+          ? { ...current.npcStatBlock, ...remote.npcStatBlock.statBlock }
+          : current.npcStatBlock,
+      }));
+    });
+    return () => {
+      active = false;
+    };
+  }, [apiUrl, id, templateId, npcId]);
+  useEffect(() => {
+    if (templateId || npcId) return;
+    const timer = window.setTimeout(() => {
+      const request = ++sequence.current;
+      sessionStorage.setItem(key, JSON.stringify({ id, values }));
+      setStatus("saving");
+      const save = id
+        ? apiFetch(`${apiUrl}/characters/${id}/draft`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(values),
+          })
+        : apiFetch(`${apiUrl}/characters/npcs/drafts`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(values),
+          });
+      void save
+        .then(async (response) => {
+          if (!response.ok || request !== sequence.current) {
+            if (request === sequence.current) setStatus("offline");
+            return;
+          }
+          const saved = (await response.json()) as { id: string };
+          setId(saved.id);
+          sessionStorage.setItem(key, JSON.stringify({ id: saved.id, values }));
+          setStatus("saved");
+        })
+        .catch(() => {
+          if (request === sequence.current) setStatus("offline");
+        });
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [apiUrl, id, templateId, npcId, values]);
+  const update = <K extends keyof Values>(key: K, value: Values[K]) =>
+    setValues((current) => ({ ...current, [key]: value }));
+  async function upload(file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    const response = await apiFetch(`${apiUrl}/media`, {
+      method: "POST",
+      body: form,
+    });
+    if (!response.ok) return setError(true);
+    const asset = (await response.json()) as { id: string };
+    update("imageAssetId", asset.id);
+  }
+  async function saveActive() {
+    setError(false);
+    const endpoint = id || templateId || npcId;
+    const response = endpoint
+      ? await apiFetch(`${apiUrl}/characters/${endpoint}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...values,
+            imageAssetId: values.imageAssetId || null,
+            status: "active",
+          }),
+        })
+      : await apiFetch(`${apiUrl}/characters/npcs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        });
+    if (!response.ok) return setError(true);
+    sessionStorage.removeItem(key);
+    router.push(npcId ? `/characters/${npcId}` : "/mestre/npcs");
+  }
+  async function archive() {
+    if (!npcId || !window.confirm("Arquivar este NPC?")) return;
+    const response = await apiFetch(`${apiUrl}/characters/${npcId}/archive`, {
+      method: "POST",
+    });
+    if (response.ok) router.push(`/characters/${npcId}`);
+    else setError(true);
+  }
+  return (
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 py-4">
+      <header>
+        <p className="text-xs uppercase tracking-[.2em] text-red-500">
+          {t("badge")}
+        </p>
+        <h1 className="font-serif text-3xl text-zinc-100">
+          {npcId
+            ? "Editar ficha de NPC"
+            : templateId
+              ? "Editar ficha de NPC"
+              : t("title")}
+        </h1>
+        {!templateId && !npcId && (
+          <p className="mt-2 text-sm text-zinc-400">
+            {t("draft", { status: t(status) })}
+          </p>
+        )}
+      </header>
+      <section className="grid gap-4 rounded-xl border border-zinc-800 bg-zinc-950 p-6 sm:grid-cols-2">
+        {fields.map((field) => (
+          <label
+            key={field}
+            className="grid min-w-0 gap-1 text-sm text-zinc-300 sm:col-span-2"
+          >
+            {t(field)}
+            <textarea
+              required={field === "name"}
+              value={values[field] ?? ""}
+              onChange={(event) => update(field, event.target.value)}
+              className="min-h-10 w-full rounded border border-zinc-700 bg-zinc-900 p-2"
+            />
+          </label>
+        ))}
+        <label className="grid min-w-0 gap-1 text-sm text-zinc-300">
+          {t("mode")}
+          <select
+            value={values.npcMode}
+            onChange={(event) =>
+              update("npcMode", event.target.value as Values["npcMode"])
+            }
+            className="w-full rounded border border-zinc-700 bg-zinc-900 p-2"
+          >
+            <option value="narrative">{t("narrative")}</option>
+            <option value="threat">{t("threat")}</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm text-zinc-300">
+          {t("portrait")}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void upload(file);
+            }}
+          />
+          {values.imageAssetId && (
+            <button
+              type="button"
+              onClick={() => update("imageAssetId", "")}
+              className="text-left text-xs text-red-300"
+            >
+              {t("removePortrait")}
+            </button>
+          )}
+        </label>
+        {values.npcMode === "threat" && (
+          <>
+            <div className="sm:col-span-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+              {numbers.map((field) => (
+                <label
+                  key={field}
+                  className="grid min-w-0 gap-1 text-xs text-zinc-300"
+                >
+                  {t(`field.${field}`)}
+                  <input
+                    type="number"
+                    value={values[field]}
+                    onChange={(event) =>
+                      update(field, Number(event.target.value))
+                    }
+                    className="w-full rounded border border-zinc-700 bg-zinc-900 p-2"
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="sm:col-span-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {statNumbers.map((field) => (
+                <label
+                  key={field}
+                  className="grid min-w-0 gap-1 text-xs text-zinc-300"
+                >
+                  {t(`field.${field}`)}
+                  <input
+                    type="number"
+                    value={values.npcStatBlock[field]}
+                    onChange={(event) =>
+                      setValues((current) => ({
+                        ...current,
+                        npcStatBlock: {
+                          ...current.npcStatBlock,
+                          [field]: Number(event.target.value),
+                        },
+                      }))
+                    }
+                    className="w-full rounded border border-zinc-700 bg-zinc-900 p-2"
+                  />
+                </label>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+      {error && <p className="text-sm text-red-300">{t("saveFailed")}</p>}
+      <div className="flex justify-end gap-3">
+        {npcId && (
+          <button
+            type="button"
+            onClick={() => void archive()}
+            className="rounded border border-red-900 px-4 py-2 text-sm text-red-300"
+          >
+            Arquivar
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => void saveActive()}
+          className="rounded bg-red-700 px-4 py-2 text-sm font-semibold text-white"
+        >
+          {npcId || templateId ? "Salvar alterações" : "Finalizar ficha"}
+        </button>
+      </div>
+    </main>
+  );
 }

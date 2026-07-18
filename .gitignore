@@ -156,3 +156,5 @@ tmp/
 .rtk/
 *.pdf
 *.Identifier
+apps/web/cypress/screenshots/
+apps/web/cypress/videos/

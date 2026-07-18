@@ -32,7 +32,10 @@ export type ClueDraft = {
   content: JSONContent;
 };
 
-export const emptyClueContent: JSONContent = { type: "doc", content: [{ type: "paragraph" }] };
+export const emptyClueContent: JSONContent = {
+  type: "doc",
+  content: [{ type: "paragraph" }],
+};
 
 export const emptyClueDraft: ClueDraft = {
   gmLabel: "",

@@ -16,7 +16,8 @@ const actions: Array<{
     href: "/campaigns",
     label: "Campanhas",
     title: "Mesa e membros",
-    description: "Crie a campanha, edite o básico e convide jogadores pelo short code.",
+    description:
+      "Crie a campanha, edite o básico e convide jogadores pelo short code.",
     action: "Gerenciar campanha",
     icon: Map,
   },
@@ -24,7 +25,8 @@ const actions: Array<{
     href: "/monsters",
     label: "Monstros",
     title: "Bestiário",
-    description: "Cadastre monstros privados ou vinculados a uma campanha e clone quando precisar.",
+    description:
+      "Cadastre monstros privados ou vinculados a uma campanha e clone quando precisar.",
     action: "Abrir monstros",
     icon: Skull,
   },
@@ -32,7 +34,8 @@ const actions: Array<{
     href: "/items?kind=document",
     label: "Documentos",
     title: "Pistas e arquivos",
-    description: "Mantenha só os documentos da mesa em uma tela dedicada, sem misturar com outros itens.",
+    description:
+      "Mantenha só os documentos da mesa em uma tela dedicada, sem misturar com outros itens.",
     action: "Abrir documentos",
     icon: BookOpenText,
   },
@@ -40,7 +43,8 @@ const actions: Array<{
     href: "/mestre/npcs",
     label: "NPCs",
     title: "Elenco da campanha",
-    description: "Gerencie apenas NPCs da mesa, com criação e edição no mesmo fluxo.",
+    description:
+      "Gerencie apenas NPCs da mesa, com criação e edição no mesmo fluxo.",
     action: "Abrir NPCs",
     icon: Users,
   },
@@ -62,7 +66,8 @@ export default function MestrePage() {
             Painel do mestre
           </h1>
           <p className="text-sm text-zinc-500">
-            Escolha a área que precisa de atenção e entre direto no CRUD correspondente.
+            Escolha a área que precisa de atenção e entre direto no CRUD
+            correspondente.
           </p>
         </div>
       </div>

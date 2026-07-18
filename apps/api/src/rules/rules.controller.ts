@@ -8,7 +8,9 @@ export class RulesController {
   constructor(private readonly rulesService: RulesService) {}
 
   @Get(':version')
-  @ApiOperation({ summary: 'Returns the versioned rules catalog used by character sheets' })
+  @ApiOperation({
+    summary: 'Returns the versioned rules catalog used by character sheets',
+  })
   getCatalog(@Param('version') version: string) {
     return this.rulesService.getCatalog(version);
   }

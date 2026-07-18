@@ -68,7 +68,10 @@ const ATTRIBUTE_CAP_AT_20_NEX = 4;
 const ATTRIBUTE_CAP_AT_50_NEX = 5;
 
 export function getAttributeBudget(nex: number): number {
-  return ATTRIBUTE_BUDGET_BASE + ATTRIBUTE_NEX_THRESHOLDS.filter((threshold) => nex >= threshold).length;
+  return (
+    ATTRIBUTE_BUDGET_BASE +
+    ATTRIBUTE_NEX_THRESHOLDS.filter((threshold) => nex >= threshold).length
+  );
 }
 
 export function getAttributeCap(nex: number): number {
@@ -81,7 +84,10 @@ export function getAttributeSpent(attributes: CharacterAttributes): number {
   return Object.values(attributes).reduce((total, value) => total + value, 0);
 }
 
-export function normalizeAttributes(attributes: CharacterAttributes, nex: number): CharacterAttributes {
+export function normalizeAttributes(
+  attributes: CharacterAttributes,
+  nex: number,
+): CharacterAttributes {
   const cap = getAttributeCap(nex);
   const budget = getAttributeBudget(nex);
   const normalized = { ...attributes };
@@ -114,17 +120,33 @@ export function getNexOptions(rules: NexRules | undefined): number[] {
   return options;
 }
 
-export function getAvailablePaths(paths: CharacterPath[], nex: number): CharacterPath[] {
+export function getAvailablePaths(
+  paths: CharacterPath[],
+  nex: number,
+): CharacterPath[] {
   return paths.filter((path) => nex >= path.minNex);
 }
 
-export function getGrantedSkillNames(origin: CharacterOrigin | undefined, characterClass: CharacterClass | undefined): string[] {
-  return [...new Set([...(origin?.grantedSkills ?? []), ...(characterClass?.grantedSkills ?? [])])];
+export function getGrantedSkillNames(
+  origin: CharacterOrigin | undefined,
+  characterClass: CharacterClass | undefined,
+): string[] {
+  return [
+    ...new Set([
+      ...(origin?.grantedSkills ?? []),
+      ...(characterClass?.grantedSkills ?? []),
+    ]),
+  ];
 }
 
-export function getSkillChoiceCount(origin: CharacterOrigin | undefined, characterClass: CharacterClass | undefined): number {
-  return [...(origin?.skillChoices ?? []), ...(characterClass?.skillChoices ?? [])]
-    .reduce((total, group) => total + group.selectionCount, 0);
+export function getSkillChoiceCount(
+  origin: CharacterOrigin | undefined,
+  characterClass: CharacterClass | undefined,
+): number {
+  return [
+    ...(origin?.skillChoices ?? []),
+    ...(characterClass?.skillChoices ?? []),
+  ].reduce((total, group) => total + group.selectionCount, 0);
 }
 
 export function getRequiredSkillCount(
@@ -134,24 +156,42 @@ export function getRequiredSkillCount(
 ): number {
   if (!characterClass) return 0;
 
-  return getGrantedSkillNames(origin, characterClass).length
-    + getSkillChoiceCount(origin, characterClass)
-    + characterClass.trainedSkills
-    + Math.max(0, intellect);
+  return (
+    getGrantedSkillNames(origin, characterClass).length +
+    getSkillChoiceCount(origin, characterClass) +
+    characterClass.trainedSkills +
+    Math.max(0, intellect)
+  );
 }
 
-export function getTrainingUpgradeLimit(characterClass: CharacterClass | undefined, intellect: number): number {
+export function getTrainingUpgradeLimit(
+  characterClass: CharacterClass | undefined,
+  intellect: number,
+): number {
   if (!characterClass) return 0;
 
   return characterClass.trainingUpgradeBase + Math.max(0, intellect);
 }
 
 export function getTrainingUpgradeCount(skills: CharacterSkill[]): number {
-  return skills.reduce((total, skill) => total + (skill.degree === "expert" ? 2 : skill.degree === "veteran" ? 1 : 0), 0);
+  return skills.reduce(
+    (total, skill) =>
+      total +
+      (skill.degree === "expert" ? 2 : skill.degree === "veteran" ? 1 : 0),
+    0,
+  );
 }
 
-export function getAvailablePowers(powers: CharacterPower[], nex: number, classSlug: string): CharacterPower[] {
-  return powers.filter((power) => power.minNex <= nex && (!power.requiredClassSlug || power.requiredClassSlug === classSlug));
+export function getAvailablePowers(
+  powers: CharacterPower[],
+  nex: number,
+  classSlug: string,
+): CharacterPower[] {
+  return powers.filter(
+    (power) =>
+      power.minNex <= nex &&
+      (!power.requiredClassSlug || power.requiredClassSlug === classSlug),
+  );
 }
 
 export function getPowerSelectionLimit(nex: number): number {

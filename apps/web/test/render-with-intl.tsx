@@ -17,7 +17,7 @@ function IntlWrapper({ children }: IntlWrapperProps) {
 
 export function renderWithIntl(
   ui: ReactElement,
-  options?: Omit<RenderOptions, "wrapper">
+  options?: Omit<RenderOptions, "wrapper">,
 ) {
   return render(ui, {
     wrapper: ({ children }) => <IntlWrapper>{children}</IntlWrapper>,

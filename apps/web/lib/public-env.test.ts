@@ -18,7 +18,7 @@ describe("public-env", () => {
     process.env.NEXT_PUBLIC_API_URL = "http://localhost:3000";
 
     expect(getGoogleAuthUrl()).toBe(
-      "https://lore-forge.onrender.com/auth/google"
+      "https://lore-forge.onrender.com/auth/google",
     );
   });
 
@@ -27,7 +27,7 @@ describe("public-env", () => {
     process.env.NEXT_PUBLIC_API_URL = "https://lore-forge.onrender.com";
 
     expect(getGoogleAuthUrl()).toBe(
-      "https://lore-forge.onrender.com/auth/google"
+      "https://lore-forge.onrender.com/auth/google",
     );
   });
 

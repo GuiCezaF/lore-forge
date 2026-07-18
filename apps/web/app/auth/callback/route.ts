@@ -6,10 +6,7 @@ import {
   REFRESH_TOKEN_LIFETIME_SECONDS,
   buildSessionCookieOptions,
 } from "@/lib/auth-cookies";
-import {
-  getServerApiUrl,
-  isServerApiUrlMisconfigured,
-} from "@/lib/api-url";
+import { getServerApiUrl, isServerApiUrlMisconfigured } from "@/lib/api-url";
 
 export async function GET(request: NextRequest) {
   const handoff = request.nextUrl.searchParams.get("handoff");
