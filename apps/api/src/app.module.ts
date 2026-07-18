@@ -14,6 +14,7 @@ import { UsersModule } from './users/users.module';
 import { RulesModule } from './rules/rules.module';
 import { CampaignCluesModule } from './campaign-clues/campaign-clues.module';
 import { SpectatorAccessModule } from './spectator-access/spectator-access.module';
+import { CampaignInventoryModule } from './campaign-inventory/campaign-inventory.module';
 import { validateEnvironment } from './config/environment';
 
 @Module({
@@ -33,6 +34,7 @@ import { validateEnvironment } from './config/environment';
     CampaignCluesModule,
     SpectatorAccessModule,
     CharactersModule,
+    CampaignInventoryModule,
     MonstersModule,
     ItemsModule,
     RulesModule,

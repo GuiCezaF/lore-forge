@@ -301,36 +301,4 @@ export class CharactersController {
       ritualSlug,
     );
   }
-
-  @Post(':characterId/inventory')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'GM adiciona item ao inventário exclusivo da campanha',
-  })
-  async addInventory(
-    @CurrentUser() user: AuthUser,
-    @Param('characterId') characterId: string,
-    @Body() body: any,
-  ): Promise<void> {
-    await this.charactersService.addInventoryItem(user.id, characterId, body);
-  }
-
-  @Delete(':characterId/inventory/:inventoryId')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'GM remove item do inventário exclusivo da campanha',
-  })
-  async removeInventory(
-    @CurrentUser() user: AuthUser,
-    @Param('characterId') characterId: string,
-    @Param('inventoryId') inventoryId: string,
-  ): Promise<void> {
-    await this.charactersService.removeInventoryItem(
-      user.id,
-      characterId,
-      inventoryId,
-    );
-  }
 }

@@ -9,6 +9,7 @@ export type Character = {
   kind: CharacterKind;
   name: string;
   description?: string | null;
+  space: number;
   data: Record<string, unknown>;
   imageAssetId?: string | null;
   frozenAt?: string | null;

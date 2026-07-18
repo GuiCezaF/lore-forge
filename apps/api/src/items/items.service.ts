@@ -10,6 +10,11 @@ import { DATABASE } from '../database/database.constants';
 import type { Database } from '../database/database.types';
 import { items, type EntityScope, type ItemKind } from '../database/schema';
 import { CampaignsService } from '../campaigns/campaigns.service';
+import type {
+  CloneItemDto,
+  CreateItemDto,
+  UpdateItemDto,
+} from './item-input.dto';
 
 export interface ItemDto {
   id: string;
@@ -20,6 +25,7 @@ export interface ItemDto {
   kind: ItemKind;
   name: string;
   description?: string | null;
+  space: number;
   data: Record<string, unknown>;
   imageAssetId?: string | null;
   locked: boolean;
@@ -56,26 +62,36 @@ export class ItemsService {
     return rows.map((row) => this.toDto(row));
   }
 
-  async createItem(
-    userId: string,
-    body: {
-      name: string;
-      description?: string | null;
-      data?: Record<string, unknown>;
-      imageAssetId?: string | null;
-      scope?: EntityScope;
-      kind?: ItemKind;
-      campaignId?: string | null;
-      sourceItemId?: string | null;
-    },
-  ): Promise<ItemDto> {
+  async createItem(userId: string, body: CreateItemDto): Promise<ItemDto> {
+    this.ensureName(body.name);
+    if (
+      body.scope !== undefined &&
+      body.scope !== 'user' &&
+      body.scope !== 'campaign'
+    )
+      throw new BadRequestException('Invalid item scope');
+    if (
+      body.kind !== undefined &&
+      body.kind !== 'item' &&
+      body.kind !== 'document'
+    )
+      throw new BadRequestException('Invalid item kind');
+    if (
+      body.data !== undefined &&
+      (typeof body.data !== 'object' ||
+        Array.isArray(body.data) ||
+        body.data === null)
+    )
+      throw new BadRequestException('data must be an object');
+    const kind = body.kind ?? 'item';
+    const space = this.parseSpace(body.space, kind);
     if (!body.name.trim()) {
       throw new BadRequestException('Item name is required');
     }
     if (body.scope === 'system') {
       throw new ForbiddenException('System items are immutable');
     }
-    if ((body.kind ?? 'item') === 'document' && body.scope !== 'campaign') {
+    if (kind === 'document' && body.scope !== 'campaign') {
       throw new ForbiddenException('Documents can only exist inside campaigns');
     }
     if (body.scope === 'campaign' && !body.campaignId) {
@@ -103,8 +119,9 @@ export class ItemsService {
           body.scope === 'campaign' ? (body.campaignId ?? null) : null,
         sourceItemId: body.sourceItemId ?? null,
         scope: body.scope ?? 'user',
-        kind: body.kind ?? 'item',
+        kind,
         name: body.name.trim(),
+        space,
         description: body.description?.trim() || null,
         data: body.data ?? {},
         imageAssetId: body.imageAssetId ?? null,
@@ -126,12 +143,7 @@ export class ItemsService {
   async updateItem(
     userId: string,
     itemId: string,
-    body: {
-      name?: string;
-      description?: string | null;
-      data?: Record<string, unknown>;
-      imageAssetId?: string | null;
-    },
+    body: UpdateItemDto,
   ): Promise<ItemDto> {
     const current = await this.getAccessibleItem(userId, itemId);
     if (!current) {
@@ -143,10 +155,12 @@ export class ItemsService {
 
     await this.ensureEditableByUser(userId, current);
 
+    if (body.name !== undefined) this.ensureName(body.name);
     const [updated] = await this.db
       .update(items)
       .set({
         name: body.name?.trim() ?? current.name,
+        space: this.parseSpace(body.space ?? current.space, current.kind),
         description:
           body.description === undefined
             ? current.description
@@ -187,11 +201,7 @@ export class ItemsService {
   async cloneItem(
     userId: string,
     itemId: string,
-    body: {
-      scope?: 'user' | 'campaign';
-      campaignId?: string | null;
-      name?: string;
-    },
+    body: CloneItemDto,
   ): Promise<ItemDto> {
     const source = await this.getItem(userId, itemId);
     const targetScope = body.scope ?? 'user';
@@ -223,6 +233,7 @@ export class ItemsService {
         scope: targetScope,
         kind: source.kind,
         name: body.name?.trim() || `${source.name} (cópia)`,
+        space: source.space,
         description: source.description ?? null,
         data: source.data,
         imageAssetId: source.imageAssetId ?? null,
@@ -299,6 +310,7 @@ export class ItemsService {
       kind: row.kind,
       name: row.name,
       description: row.description ?? null,
+      space: row.space,
       data: row.data ?? {},
       imageAssetId: row.imageAssetId ?? null,
       locked: row.locked,
@@ -306,5 +318,26 @@ export class ItemsService {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
+  }
+
+  private ensureName(name: unknown): asserts name is string {
+    if (typeof name !== 'string' || !name.trim() || name.trim().length > 200)
+      throw new BadRequestException(
+        'Item name must be between 1 and 200 characters',
+      );
+  }
+
+  private parseSpace(value: unknown, kind: ItemKind): number {
+    if (kind === 'document') {
+      if (value !== undefined && value !== 0)
+        throw new BadRequestException('Documents must have zero space');
+      return 0;
+    }
+    if (value === undefined) return 0;
+    if (!Number.isInteger(value) || value < 0 || value > 9999)
+      throw new BadRequestException(
+        'space must be an integer between 0 and 9999',
+      );
+    return value;
   }
 }

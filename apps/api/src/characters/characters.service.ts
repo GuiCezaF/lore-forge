@@ -20,7 +20,6 @@ import {
   characterEditDraftPowers,
   characterEditDraftSkills,
   characterEditDrafts,
-  characterInventory,
   characterSelections,
   characterSkills,
   characters,
@@ -163,16 +162,6 @@ export interface CampaignPlayStateDto {
     name: string;
     rank: number;
     maxRank: number;
-  }>;
-  inventory: Array<{
-    id: string;
-    itemId: string | null;
-    name: string;
-    quantity: number;
-    isEquipped: boolean;
-    notes: string | null;
-    addedByUserId: string | null;
-    createdAt: string;
   }>;
 }
 
@@ -1201,17 +1190,11 @@ export class CharactersService {
       throw new BadRequestException('Character is not in a campaign');
     await this.ensureCanAccessCampaignState(userId, character);
     const maximums = await this.getCampaignResourceMaximums(character);
-    const [[state], inventory, ritualRows, catalog] = await Promise.all([
+    const [[state], ritualRows, catalog] = await Promise.all([
       this.db
         .select()
         .from(campaignCharacterStates)
         .where(eq(campaignCharacterStates.characterId, characterId)),
-      character.kind === 'pc'
-        ? this.db
-            .select()
-            .from(characterInventory)
-            .where(eq(characterInventory.characterId, characterId))
-        : Promise.resolve([]),
       character.kind === 'pc'
         ? this.db
             .select()
@@ -1250,16 +1233,6 @@ export class CharactersService {
           maxRank: option?.maxRank ?? ritual.rank,
         };
       }),
-      inventory: inventory.map((entry) => ({
-        id: entry.id,
-        itemId: entry.itemId ?? null,
-        name: entry.name,
-        quantity: entry.quantity,
-        isEquipped: entry.isEquipped,
-        notes: entry.notes ?? null,
-        addedByUserId: entry.addedByUserId ?? null,
-        createdAt: entry.createdAt,
-      })),
     };
   }
 
@@ -1321,71 +1294,6 @@ export class CharactersService {
           eq(campaignCharacterRituals.ritualSlug, ritualSlug),
         ),
       );
-  }
-
-  async addInventoryItem(
-    userId: string,
-    characterId: string,
-    body: {
-      name: string;
-      itemId?: string;
-      quantity?: number;
-      isEquipped?: boolean;
-      notes?: string;
-    },
-  ): Promise<void> {
-    const character = await this.getAccessibleCharacter(userId, characterId);
-    if (character.kind !== 'pc') {
-      throw new BadRequestException(
-        'Only Player Characters have campaign inventory',
-      );
-    }
-    if (character.status !== 'active')
-      throw new ConflictException(
-        'Only active Campaign Characters can change inventory',
-      );
-    await this.ensureManager(userId, character.campaignId);
-    this.ensureName(body.name);
-    if (!Number.isInteger(body.quantity ?? 1) || (body.quantity ?? 1) < 1)
-      throw new BadRequestException('Inventory quantity must be at least 1');
-    await this.db.insert(characterInventory).values({
-      characterId,
-      name: body.name.trim(),
-      itemId: body.itemId ?? null,
-      quantity: body.quantity ?? 1,
-      isEquipped: body.isEquipped ?? false,
-      notes: body.notes?.trim() || null,
-      addedByUserId: userId,
-    });
-  }
-
-  async removeInventoryItem(
-    userId: string,
-    characterId: string,
-    inventoryId: string,
-  ): Promise<void> {
-    const character = await this.getAccessibleCharacter(userId, characterId);
-    if (character.kind !== 'pc') {
-      throw new BadRequestException(
-        'Only Player Characters have campaign inventory',
-      );
-    }
-    if (character.status !== 'active')
-      throw new ConflictException(
-        'Only active Campaign Characters can change inventory',
-      );
-    await this.ensureManager(userId, character.campaignId);
-    const deleted = await this.db
-      .delete(characterInventory)
-      .where(
-        and(
-          eq(characterInventory.id, inventoryId),
-          eq(characterInventory.characterId, characterId),
-        ),
-      )
-      .returning({ id: characterInventory.id });
-    if (!deleted.length)
-      throw new NotFoundException('Inventory entry not found');
   }
 
   private async getAccessibleCharacter(userId: string, characterId: string) {

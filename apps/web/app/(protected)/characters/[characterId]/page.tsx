@@ -6,6 +6,10 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { apiFetch } from "@/lib/api-client";
 import { getBrowserApiUrl } from "@/lib/api-url";
 import { useTranslations } from "next-intl";
+import {
+  CampaignInventoryPanel,
+  type CampaignInventory,
+} from "@/app/components/campaign-inventory-panel";
 
 const attributeKeys = [
   "agility",
@@ -112,13 +116,6 @@ type Conflict = {
   optionId?: string;
   message: string;
 };
-type Inventory = {
-  id: string;
-  name: string;
-  quantity: number;
-  isEquipped: boolean;
-  notes: string | null;
-};
 type PlayState = {
   currentHp: number | null;
   maxHp: number | null;
@@ -131,7 +128,6 @@ type PlayState = {
   gmNotes: string | null;
   updatedAt: string;
   rituals: Array<{ slug: string; name: string; rank: number; maxRank: number }>;
-  inventory: Inventory[];
 };
 type RulesCatalog = {
   nex: { min: number; max: number; step: number };
@@ -183,12 +179,12 @@ export default function CharacterDetailPage() {
   const apiUrl = getBrowserApiUrl();
   const [character, setCharacter] = useState<Character | null>(null);
   const [playState, setPlayState] = useState<PlayState | null>(null);
+  const [inventory, setInventory] = useState<CampaignInventory | null>(null);
   const [draft, setDraft] = useState<EditDraft | null>(null);
   const [rules, setRules] = useState<RulesCatalog | null>(null);
   const [tab, setTab] = useState<"sheet" | "build" | "description">("sheet");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [error, setError] = useState("");
-  const [item, setItem] = useState({ name: "", quantity: 1, notes: "" });
   const saveChain = useRef(Promise.resolve());
   const playStateSaveChain = useRef(Promise.resolve());
   const playStateVersion = useRef(0);
@@ -219,12 +215,26 @@ export default function CharacterDetailPage() {
       );
       if (stateResponse.ok)
         setPlayState((await stateResponse.json()) as PlayState);
+      if (sheet.kind === "pc" && sheet.permissions.canViewCampaignState) {
+        const inventoryResponse = await apiFetch(
+          `${apiUrl}/characters/${id}/inventory`,
+        );
+        if (inventoryResponse.ok)
+          setInventory((await inventoryResponse.json()) as CampaignInventory);
+        else if ([401, 403, 404].includes(inventoryResponse.status))
+          setInventory(null);
+      } else setInventory(null);
     } else setPlayState(null);
   }
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void load());
     return () => window.clearTimeout(timeout);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const revalidate = () => void load();
+    window.addEventListener("focus", revalidate);
+    return () => window.removeEventListener("focus", revalidate);
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if ((draft || character?.permissions.canManageRituals) && !rules)
@@ -427,27 +437,10 @@ export default function CharacterDetailPage() {
     if (!response.ok) setError(t("ownerState"));
     else await load();
   }
-  async function addItem(event: FormEvent) {
-    event.preventDefault();
-    const response = await apiFetch(`${apiUrl}/characters/${id}/inventory`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(item),
-    });
-    if (!response.ok) {
-      setError(t("gmInventory"));
-      return;
-    }
-    setItem({ name: "", quantity: 1, notes: "" });
-    void load();
-  }
-  async function removeItem(inventoryId: string) {
-    const response = await apiFetch(
-      `${apiUrl}/characters/${id}/inventory/${inventoryId}`,
-      { method: "DELETE" },
-    );
-    if (!response.ok) setError(t("gmInventory"));
-    else void load();
+  async function reloadInventory() {
+    const response = await apiFetch(`${apiUrl}/characters/${id}/inventory`);
+    if (response.ok) setInventory((await response.json()) as CampaignInventory);
+    else if ([401, 403, 404].includes(response.status)) setInventory(null);
   }
   async function copy() {
     const response = await apiFetch(`${apiUrl}/characters/${id}/copy`, {
@@ -687,17 +680,15 @@ export default function CharacterDetailPage() {
                 onPut={putRitual}
                 onRemove={removeRitual}
               />
-              <InventoryPanel
-                state={playState}
-                canManage={
-                  character.permissions.canManageInventory && !isArchived
-                }
-                item={item}
-                setItem={setItem}
-                onAdd={addItem}
-                onRemove={removeItem}
-                t={t}
-              />
+              {inventory && (
+                <CampaignInventoryPanel
+                  characterId={id}
+                  inventory={inventory}
+                  canManage={character.permissions.canManageInventory}
+                  isHistorical={character.status !== "active"}
+                  onChanged={reloadInventory}
+                />
+              )}
             </div>
           )}
         </div>
@@ -1297,83 +1288,6 @@ function RitualPanel({
           </button>
         </div>
       ) : null}
-    </section>
-  );
-}
-function InventoryPanel({
-  state,
-  canManage,
-  item,
-  setItem,
-  onAdd,
-  onRemove,
-  t,
-}: {
-  state: PlayState;
-  canManage: boolean;
-  item: { name: string; quantity: number; notes: string };
-  setItem: (item: { name: string; quantity: number; notes: string }) => void;
-  onAdd: (event: FormEvent) => Promise<void>;
-  onRemove: (id: string) => Promise<void>;
-  t: ReturnType<typeof useTranslations>;
-}) {
-  return (
-    <section className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-950 p-5">
-      <h2 className="font-serif text-xl text-zinc-100">{t("inventory")}</h2>
-      <ul className="space-y-2">
-        {state.inventory.map((entry) => (
-          <li
-            key={entry.id}
-            className="flex items-center justify-between rounded border border-zinc-800 p-2 text-sm text-zinc-300"
-          >
-            <span>
-              {entry.name} × {entry.quantity}
-              {entry.notes ? ` — ${entry.notes}` : ""}
-            </span>
-            {canManage && (
-              <button
-                onClick={() => void onRemove(entry.id)}
-                className="text-xs text-red-300"
-              >
-                {t("remove")}
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-      {canManage ? (
-        <form onSubmit={(event) => void onAdd(event)} className="grid gap-2">
-          <input
-            required
-            placeholder={t("itemName")}
-            value={item.name}
-            onChange={(event) => setItem({ ...item, name: event.target.value })}
-            className="rounded border border-zinc-700 bg-zinc-900 p-2 text-sm text-white"
-          />
-          <input
-            type="number"
-            min="1"
-            value={item.quantity}
-            onChange={(event) =>
-              setItem({ ...item, quantity: Number(event.target.value) })
-            }
-            className="rounded border border-zinc-700 bg-zinc-900 p-2 text-sm text-white"
-          />
-          <input
-            placeholder={t("gmNote")}
-            value={item.notes}
-            onChange={(event) =>
-              setItem({ ...item, notes: event.target.value })
-            }
-            className="rounded border border-zinc-700 bg-zinc-900 p-2 text-sm text-white"
-          />
-          <button className="rounded bg-red-700 px-3 py-2 text-sm text-white">
-            {t("addItem")}
-          </button>
-        </form>
-      ) : (
-        <p className="text-xs text-zinc-500">{t("gmInventory")}</p>
-      )}
     </section>
   );
 }

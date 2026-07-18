@@ -24,6 +24,4 @@ export class CampaignPlayStateDto {
   updatedAt!: string;
   @ApiProperty({ type: CampaignRitualDto, isArray: true })
   rituals!: CampaignRitualDto[];
-  @ApiProperty({ type: 'array', items: { type: 'object' } })
-  inventory!: Array<Record<string, unknown>>;
 }

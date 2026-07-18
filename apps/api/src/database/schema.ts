@@ -747,12 +747,17 @@ export const characterInventory = pgTable(
     }),
     name: text('name').notNull(),
     quantity: integer('quantity').notNull().default(1),
+    spacePerUnit: integer('space_per_unit').notNull().default(0),
     isEquipped: boolean('is_equipped').notNull().default(false),
-    notes: text('notes'),
+    visibleNotes: text('visible_notes'),
+    gmNotes: text('gm_notes'),
     addedByUserId: uuid('added_by_user_id').references(() => users.id, {
       onDelete: 'set null',
     }),
     createdAt: timestamp('created_at', { mode: 'string', withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'string', withTimezone: true })
       .notNull()
       .defaultNow(),
   },
@@ -824,6 +829,7 @@ export const monsters = pgTable(
     scope: text('scope').notNull().$type<EntityScope>().default('system'),
     name: text('name').notNull(),
     description: text('description'),
+    space: integer('space').notNull().default(0),
     data: jsonb('data').notNull().$type<Record<string, unknown>>().default({}),
     imageAssetId: uuid('image_asset_id').references(() => mediaAssets.id, {
       onDelete: 'set null',

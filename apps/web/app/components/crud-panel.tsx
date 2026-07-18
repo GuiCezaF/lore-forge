@@ -17,7 +17,7 @@ import {
 import { getBrowserApiUrl } from "@/lib/api-url";
 import { useTranslations } from "next-intl";
 
-type FieldType = "text" | "textarea" | "select" | "json";
+type FieldType = "text" | "number" | "textarea" | "select" | "json";
 
 export type CrudField = {
   name: string;
@@ -26,6 +26,9 @@ export type CrudField = {
   placeholder?: string;
   options?: Array<{ label: string; value: string }>;
   visible?: (values: Record<string, string>) => boolean;
+  min?: number;
+  max?: number;
+  step?: number;
 };
 
 export type CrudPanelProps<T extends { id: string }> = {
@@ -385,7 +388,10 @@ export function CrudPanel<T extends { id: string }>({
                         </select>
                       ) : (
                         <input
-                          type="text"
+                          type={field.type === "number" ? "number" : "text"}
+                          min={field.min}
+                          max={field.max}
+                          step={field.step}
                           value={form[field.name] ?? ""}
                           onChange={(event) =>
                             updateField(field.name, event.target.value)

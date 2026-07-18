@@ -19,6 +19,7 @@ import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ItemsService } from './items.service';
+import { CloneItemDto, CreateItemDto, UpdateItemDto } from './item-input.dto';
 
 @Controller('items')
 @ApiTags('items')
@@ -39,7 +40,7 @@ export class ItemsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cria um item' })
   @ApiOkResponse({ description: 'Item criado' })
-  create(@CurrentUser() user: AuthUser, @Body() body: any) {
+  create(@CurrentUser() user: AuthUser, @Body() body: CreateItemDto) {
     return this.itemsService.createItem(user.id, body);
   }
 
@@ -60,7 +61,7 @@ export class ItemsController {
   update(
     @CurrentUser() user: AuthUser,
     @Param('itemId') itemId: string,
-    @Body() body: any,
+    @Body() body: UpdateItemDto,
   ) {
     return this.itemsService.updateItem(user.id, itemId, body);
   }
@@ -85,7 +86,7 @@ export class ItemsController {
   clone(
     @CurrentUser() user: AuthUser,
     @Param('itemId') itemId: string,
-    @Body() body: any,
+    @Body() body: CloneItemDto,
   ) {
     return this.itemsService.cloneItem(user.id, itemId, body);
   }
