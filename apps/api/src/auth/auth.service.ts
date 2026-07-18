@@ -328,9 +328,10 @@ export class AuthService {
         this.getJwtSecret(),
       );
       const refreshTokenHash = hashToken(refreshToken, this.getJwtSecret());
-      const session = await this.getSessionRepository().findByRefreshTokenHash(
-        refreshTokenHash,
-      );
+      const session =
+        await this.getSessionRepository().findByRefreshTokenHash(
+          refreshTokenHash,
+        );
       if (
         !session ||
         session.userId !== claims.sub ||

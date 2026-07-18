@@ -116,9 +116,9 @@ describe('AuthService', () => {
         hashToken(session.refreshToken, service.getJwtSecret()),
       );
       expect(tokenRecord?.revokedAt).toEqual(expect.any(String));
-      await expect(service.verifyAccessToken(session.accessToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.verifyAccessToken(session.accessToken),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('ignores invalid refresh cookie silently', async () => {
