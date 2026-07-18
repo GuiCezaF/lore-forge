@@ -158,6 +158,10 @@ export class UsersService {
     return this.toAuthUser(updated);
   }
 
+  async invalidateAccessTokens(userId: string): Promise<void> {
+    await this.userRepository.incrementTokenVersion(userId);
+  }
+
   async getProfile(userId: string): Promise<PublicUser> {
     return this.findPublicById(userId);
   }

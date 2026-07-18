@@ -105,7 +105,7 @@ describe('AuthService', () => {
   });
 
   describe('logoutFromCookies', () => {
-    it('revokes refresh session for valid cookie', async () => {
+    it('revokes the session and access token for a valid cookie', async () => {
       const user = await usersService.upsertGoogleUser(googleProfile);
       const session = await service.createSession(user);
       const cookieHeader = `${REFRESH_TOKEN_COOKIE}=${session.refreshToken}`;
@@ -116,6 +116,9 @@ describe('AuthService', () => {
         hashToken(session.refreshToken, service.getJwtSecret()),
       );
       expect(tokenRecord?.revokedAt).toEqual(expect.any(String));
+      await expect(service.verifyAccessToken(session.accessToken)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('ignores invalid refresh cookie silently', async () => {

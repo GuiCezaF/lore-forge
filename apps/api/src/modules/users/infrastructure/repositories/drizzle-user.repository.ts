@@ -109,4 +109,11 @@ export class DrizzleUserRepository implements IUserRepository {
       })
       .where(eq(users.id, id));
   }
+
+  async incrementTokenVersion(id: string): Promise<void> {
+    await this.db
+      .update(users)
+      .set({ tokenVersion: sql`${users.tokenVersion} + 1` })
+      .where(eq(users.id, id));
+  }
 }

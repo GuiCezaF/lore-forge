@@ -49,4 +49,15 @@ export class InMemoryUserRepository implements IUserRepository {
       tokenVersion: user.tokenVersion + 1,
     });
   }
+
+  async incrementTokenVersion(id: string): Promise<void> {
+    const user = this.usersById.get(id);
+    if (!user) {
+      return;
+    }
+    this.usersById.set(id, {
+      ...user,
+      tokenVersion: user.tokenVersion + 1,
+    });
+  }
 }

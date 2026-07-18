@@ -7,4 +7,5 @@ export interface IUserRepository {
   findAll(): Promise<UserRecord[]>;
   save(user: UserRecord): Promise<void>;
   softDelete(id: string, deletedAt: string): Promise<void>;
+  incrementTokenVersion(id: string): Promise<void>;
 }

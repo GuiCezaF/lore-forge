@@ -323,11 +323,26 @@ export class AuthService {
     }
 
     try {
-      verifyJwt<RefreshTokenClaims>(refreshToken, this.getJwtSecret());
-      await this.getSessionRepository().revokeByRefreshTokenHash(
-        hashToken(refreshToken, this.getJwtSecret()),
-        new Date().toISOString(),
+      const claims = verifyJwt<RefreshTokenClaims>(
+        refreshToken,
+        this.getJwtSecret(),
       );
+      const refreshTokenHash = hashToken(refreshToken, this.getJwtSecret());
+      const session = await this.getSessionRepository().findByRefreshTokenHash(
+        refreshTokenHash,
+      );
+      if (
+        !session ||
+        session.userId !== claims.sub ||
+        session.revokedAt ||
+        Date.parse(session.expiresAt) <= Date.now()
+      ) {
+        return;
+      }
+
+      const revokedAt = new Date().toISOString();
+      await this.getSessionRepository().revokeByUserId(claims.sub, revokedAt);
+      await this.usersService.invalidateAccessTokens(claims.sub);
     } catch {
       return;
     }
